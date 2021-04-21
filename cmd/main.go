@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	deej "github.com/zahnatomletsplay/deejmotorized"
+	deej "github.com/zahnatomletsplay/deej"
 )
 
 var (

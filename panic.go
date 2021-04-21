@@ -9,7 +9,7 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/zahnatomletsplay/deejmotorized/util"
+	"github.com/zahnatomletsplay/deej/util"
 )
 
 const (

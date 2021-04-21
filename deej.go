@@ -9,7 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/zahnatomletsplay/deejmotorized/util"
+	"github.com/zahnatomletsplay/deej/util"
 )
 
 const (

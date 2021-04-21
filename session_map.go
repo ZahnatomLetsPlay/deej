@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/thoas/go-funk"
-	"github.com/zahnatomletsplay/deejmotorized/util"
+	"github.com/zahnatomletsplay/deej/util"
 	"go.uber.org/zap"
 )
 

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/zahnatomletsplay/deejmotorized/util"
+	"github.com/zahnatomletsplay/deej/util"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

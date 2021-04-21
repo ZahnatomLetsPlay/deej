@@ -1,4 +1,4 @@
-module github.com/zahnatomletsplay/deejmotorized
+module github.com/zahnatomletsplay/deej
 
 go 1.14
 

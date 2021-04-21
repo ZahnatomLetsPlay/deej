@@ -5,8 +5,8 @@ import (
 
 	"github.com/getlantern/systray"
 
-	"github.com/zahnatomletsplay/deejmotorized/icon"
-	"github.com/zahnatomletsplay/deejmotorized/util"
+	"github.com/zahnatomletsplay/deej/icon"
+	"github.com/zahnatomletsplay/deej/util"
 )
 
 var (
