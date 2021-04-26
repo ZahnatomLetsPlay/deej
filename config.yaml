@@ -37,7 +37,7 @@ slider_mapping:
   5:
 
 # set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
-invert_sliders: true
+invert_sliders: false
 
 # settings for connecting to the arduino board
 com_port: COM3
@@ -50,3 +50,4 @@ process_refresh_frequency: 5
 # adjust the amount of signal noise reduction depending on your hardware quality
 # supported values are "low" (excellent hardware), "default" (regular hardware) or "high" (bad, noisy hardware)
 noise_reduction: default
+
