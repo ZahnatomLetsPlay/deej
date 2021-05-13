@@ -8,7 +8,7 @@
 //You must Hard Code in the number of Sliders in
 #define NUM_SLIDERS 6
 #define SERIALSPEED 9600
-#define FrequencyMS 10
+#define FrequencyMS 5
 #define SerialTimeout 2000 //This is two seconds
 
 const uint8_t analogInputs[NUM_SLIDERS] = {A0, 19, 20, 21, 9, 8};
@@ -18,23 +18,28 @@ uint16_t volumeValues[NUM_SLIDERS];
 
 // Constend Send
 bool pushSliderValuesToPC = false;
+bool receivednewvalues = false;
 
 String outboundCommands = "";
 
 void setup() { 
   Serial.begin(SERIALSPEED);
   Serial.print("INITBEGIN");
-
+  pinMode(LED_BUILTIN, OUTPUT);
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
     pinMode(analogInputs[i], INPUT);
   }
 
   Serial.println("INITDONE");
+  Serial.println("");
 }
 
 void loop() {
   checkForCommand();
-
+  if(receivednewvalues){
+  //  checkForCommand();
+    receivednewvalues = false;
+  }
   updateSliderValues();
 
   //Check for data chanel to be open
@@ -60,7 +65,7 @@ void updateSliderValues() {
      analogSliderValues[i] = analogRead(analogInputs[i]);
   }
   //FOR TESTING:
-  //memcpy(analogSliderValues, volumeValues, sizeof(analogSliderValues));
+  memcpy(analogSliderValues, volumeValues, sizeof(analogSliderValues));
 }
 
 void sendSliderValues() {
@@ -116,7 +121,7 @@ void checkForCommand() {
 
     //Get data from Serial
     String input = Serial.readStringUntil('\n');  // Read chars from serial monitor
-
+    //Serial.println(input);
     //If data takes to long
     if(millis()-timeStart >= SerialTimeout) {
       Serial.println("TIMEOUT");
@@ -152,12 +157,17 @@ void checkForCommand() {
         char split[receive.length()];
         receive.toCharArray(split, receive.length());
         char* piece = strtok(split, "|");
+        //Serial.print("Received: ");
         for(int i = 0; piece!= NULL; i++){
           //Serial.println(piece);
           String value = String(piece);
           volumeValues[i] = value.toInt();
+          //Serial.print(value.toInt());
+          //Serial.print("|");
           piece = strtok(NULL, "|");
         }
+        //Serial.println();
+        receivednewvalues = true;
         //Serial.println(receive);
         /*for(int i = 0; i<NUM_SLIDERS; i++){
           String value = Serial.readStringUntil("|");
