@@ -8,7 +8,7 @@
 //You must Hard Code in the number of Sliders in
 #define NUM_SLIDERS 6
 #define SERIALSPEED 9600
-#define FrequencyMS 5
+#define FrequencyMS 10
 #define SerialTimeout 2000 //This is two seconds
 
 const uint8_t analogInputs[NUM_SLIDERS] = {A0, 19, 20, 21, 9, 8};
@@ -47,6 +47,7 @@ void loop() {
     sendSliderValues(); // Actually send data
   }
   // printSliderValues(); // For debug
+  Serial.println("");
   delay(FrequencyMS);
 }
 
@@ -76,11 +77,11 @@ void sendSliderValues() {
       Serial.print("|");
     }
   }
-  if (outboundCommands != "") {
+  /*if (outboundCommands != "") {
     Serial.print(":");
     Serial.print(outboundCommands);
     outboundCommands = "";
-  }
+  }*/
 
   Serial.println();
 }
