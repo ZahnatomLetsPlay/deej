@@ -123,9 +123,7 @@ func (sio *SerialIO) Start() error {
 	// read lines or await a stop
 
 	go func() {
-		sio.logger.Debug("before new linechannel")
 		lineChannel := sio.ReadLine(sio.namedLogger)
-		sio.logger.Debug("after new linechannel")
 		sio.running = true
 
 		// Ensue proper lines befor affecting the users volume
@@ -164,7 +162,7 @@ func (sio *SerialIO) Start() error {
 					sio.handleLine(sio.namedLogger, line)
 					sio.logger.Debug("Received:", line)
 					if !sio.firstline {
-						sio.firstline = true
+						//sio.firstline = true
 					}
 				case <-time.After(1 * time.Second):
 					break
@@ -344,6 +342,7 @@ func (sio *SerialIO) ReadLine(logger *zap.SugaredLogger) chan string {
 	go func() {
 		for {
 			line, err := bufio.NewReader(sio.conn).ReadString('\n')
+			sio.logger.Debug(line)
 			if err != nil {
 
 				// we probably don't need to log this, it'll happen once and the read loop will stop
