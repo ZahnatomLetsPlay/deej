@@ -111,6 +111,7 @@ func (sio *SerialIO) Initialize() error {
 		sio.namedLogger.Warnw("Failed to open serial connection", "error", err)
 		return fmt.Errorf("open serial connection: %w", err)
 	}
+	//sio.WriteStringLine(sio.namedLogger, "deej.core.start")
 
 	sio.namedLogger.Infow("Connected", "conn", sio.conn)
 	sio.connected = true
@@ -123,20 +124,29 @@ func (sio *SerialIO) Start() error {
 	// read lines or await a stop
 
 	go func() {
-		sio.WriteStringLine(sio.namedLogger, "deej.core.start")
 		lineChannel := sio.ReadLine(sio.namedLogger)
 		sio.running = true
+		//sio.WriteStringLine(sio.namedLogger, "deej.core.start")
+
+		/*for {
+			select {
+			case line := <-lineChannel:
+				sio.logger.Debug(line)
+				if line == "\n" {
+					sio.WriteStringLine(sio.namedLogger, "deej.core.start")
+				}
+			case <-time.After(1 * time.Second):
+			}
+		}*/
 
 		// Ensue proper lines befor affecting the users volume
-		if !sio.firstline {
-			for i := 0; i < 5; i++ {
-				//sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-				select {
-				case line := <-lineChannel:
-					sio.logger.Debug(line)
-					_ = line
-				case <-time.After(1 * time.Second):
-				}
+		for i := 0; i < 5; i++ {
+			sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+			select {
+			case line := <-lineChannel:
+				sio.logger.Debug(line)
+				_ = line
+			case <-time.After(1 * time.Second):
 			}
 		}
 
@@ -150,17 +160,15 @@ func (sio *SerialIO) Start() error {
 				return
 			default:
 				sio.logger.Debug("Run")
+
+				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
 				if sio.firstline {
 					vols := sio.deej.sessions.deej.GetSessionMap().getVolumes()
 					sio.logger.Debug("actual volumes", vols)
 					sio.WriteValues(sio.namedLogger, vols)
-					sio.Flush(sio.namedLogger)
 				}
-
-				//sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-				var line string
 				select {
-				case line = <-lineChannel:
+				case line := <-lineChannel:
 					sio.handleLine(sio.namedLogger, line)
 					sio.logger.Debug("Received:", line)
 					if !sio.firstline {

@@ -8,13 +8,13 @@
 //You must Hard Code in the number of Sliders in
 #define NUM_SLIDERS 6
 #define SERIALSPEED 9600
-#define FrequencyMS 10
+#define FrequencyMS 0
 #define SerialTimeout 2000 //This is two seconds
 
 const uint8_t analogInputs[NUM_SLIDERS] = {A0, 19, 20, 21, 9, 8};
 
 uint16_t analogSliderValues[NUM_SLIDERS] = {10, 20, 30, 40, 50, 60};
-uint16_t volumeValues[NUM_SLIDERS];
+uint16_t volumeValues[NUM_SLIDERS] = {1,2,3,4,5,6};
 
 // Constend Send
 bool pushSliderValuesToPC = false;
@@ -24,30 +24,30 @@ String outboundCommands = "";
 
 void setup() { 
   Serial.begin(SERIALSPEED);
-  Serial.print("INITBEGIN");
+  //Serial.print("INITBEGIN");
   pinMode(LED_BUILTIN, OUTPUT);
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
     pinMode(analogInputs[i], INPUT);
   }
 
-  Serial.println("INITDONE");
-  Serial.println("");
+  //Serial.println("INITDONE");
+  //Serial.println("");
 }
 
 void loop() {
   checkForCommand();
-  if(receivednewvalues){
-  //  checkForCommand();
+  /*if(receivednewvalues){
+    checkForCommand();
     receivednewvalues = false;
-  }
+  }*/
   updateSliderValues();
 
   //Check for data chanel to be open
   if(pushSliderValuesToPC) {
     sendSliderValues(); // Actually send data
-  }
+  } 
+  
   // printSliderValues(); // For debug
-  Serial.println("");
   delay(FrequencyMS);
 }
 
@@ -116,7 +116,7 @@ void printSliderValues() {
 
 void checkForCommand() {
   //Check if data is waiting
-  if (Serial.available() > 0) {
+  //if (Serial.available() > 0) {
     //Get start time of command
     unsigned long timeStart = millis();
 
@@ -131,7 +131,7 @@ void checkForCommand() {
 
     // Check and match commands
     else {
-
+       
       // Start Sending Slider Values
       if ( input.equalsIgnoreCase("deej.core.start") == true ) {
         pushSliderValuesToPC = true;
@@ -183,8 +183,9 @@ void checkForCommand() {
 
       //Default Catch all
       else {
-        Serial.println("INVALIDCOMMANDS");
+        Serial.println("INVALIDCOMMANDS: " + input);
+        return;
       }
     }
-  }
+  //}
 }
