@@ -126,6 +126,7 @@ func (sio *SerialIO) Start() error {
 	go func() {
 		lineChannel := sio.ReadLine(sio.namedLogger)
 		sio.running = true
+		sio.firstline = false
 		//sio.WriteStringLine(sio.namedLogger, "deej.core.start")
 
 		/*for {
@@ -165,16 +166,14 @@ func (sio *SerialIO) Start() error {
 
 				sio.logger.Debug("requesting values done")
 
-				if sio.firstline {
-					sio.WriteValues(sio.namedLogger, sio.deej.sessions.deej.GetSessionMap().getVolumes())
-				}
-
 				select {
 				case line := <-lineChannel:
 					sio.handleLine(sio.namedLogger, line)
 					sio.logger.Debug("Received:", line)
 					if !sio.firstline {
 						//sio.firstline = true
+					} else {
+						sio.WriteValues(sio.namedLogger, sio.deej.sessions.deej.GetSessionMap().getVolumes())
 					}
 				case <-time.After(1 * time.Second):
 					break
