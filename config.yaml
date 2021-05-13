@@ -40,7 +40,7 @@ slider_mapping:
 invert_sliders: false
 
 # settings for connecting to the arduino board
-com_port: COM3
+com_port: COM8
 baud_rate: 9600
 
 # limits how often deej will look for new processes

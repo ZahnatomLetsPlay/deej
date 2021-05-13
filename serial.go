@@ -148,14 +148,15 @@ func (sio *SerialIO) Start() error {
 				sio.logger.Debug("Run")
 				if sio.firstline {
 					vols := sio.deej.sessions.deej.GetSessionMap().getVolumes()
-					sio.logger.Debug(vols)
-					//sio.WriteValues(sio.namedLogger, vols)
+					sio.logger.Debug("actual volumes", vols)
+					sio.WriteValues(sio.namedLogger, vols)
 				}
 
-				//time.Sleep(500 * time.Microsecond)
 				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+				//lineChannel := sio.ReadLine(sio.namedLogger)
 				var line string
-
+				linetest := <-lineChannel
+				sio.logger.Debug(linetest)
 				select {
 				case line = <-lineChannel:
 					sio.handleLine(sio.namedLogger, line)
@@ -240,11 +241,8 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) {
 			line += "|"
 		}
 	}
-	//sio.logger.Debug("Sending command to prepare to receive values")
 	sio.WriteStringLine(logger, "deej.core.receive\n"+line)
-	//time.Sleep(500 * time.Microsecond)
 	sio.logger.Debug("Sending values:", line)
-	//sio.WriteStringLine(logger, line)
 }
 
 // WriteStringLine retruns nothing
@@ -501,11 +499,12 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 	}
 
 	// deliver move events if there are any, towards all potential consumers
-	if len(moveEvents) > 0 {
+	//not trigger move events for testing
+	/*if len(moveEvents) > 0 {
 		for _, consumer := range sio.sliderMoveConsumers {
 			for _, moveEvent := range moveEvents {
 				consumer <- moveEvent
 			}
 		}
-	}
+	}*/
 }
