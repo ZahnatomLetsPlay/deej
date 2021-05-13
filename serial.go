@@ -162,17 +162,19 @@ func (sio *SerialIO) Start() error {
 				sio.logger.Debug("Run")
 
 				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+
+				sio.logger.Debug("requesting values done")
+
 				if sio.firstline {
-					vols := sio.deej.sessions.deej.GetSessionMap().getVolumes()
-					sio.logger.Debug("actual volumes", vols)
-					sio.WriteValues(sio.namedLogger, vols)
+					sio.WriteValues(sio.namedLogger, sio.deej.sessions.deej.GetSessionMap().getVolumes())
 				}
+
 				select {
 				case line := <-lineChannel:
 					sio.handleLine(sio.namedLogger, line)
 					sio.logger.Debug("Received:", line)
 					if !sio.firstline {
-						sio.firstline = true
+						//sio.firstline = true
 					}
 				case <-time.After(1 * time.Second):
 					break
@@ -183,6 +185,32 @@ func (sio *SerialIO) Start() error {
 	}()
 
 	return nil
+}
+
+// ReadLine read's a line into a channel
+func (sio *SerialIO) ReadLine(logger *zap.SugaredLogger) chan string {
+	ch := make(chan string)
+
+	go func() {
+		reader := bufio.NewReader(sio.conn)
+		for {
+			logger.Debugw("Reading line...")
+			line, err := reader.ReadString('\n')
+			if err != nil {
+
+				// we probably don't need to log this, it'll happen once and the read loop will stop
+				logger.Warnw("Failed to read line from serial", "error", err, "line", line)
+				return
+			}
+
+			// no reason to log here, just deliver the line to the channel
+			logger.Debugw("Read new line", "line", line)
+			ch <- line
+			logger.Debugw("Pushed line into channel")
+		}
+	}()
+
+	return ch
 }
 
 // IsRunning Returns if the main sync loop is running
@@ -342,32 +370,6 @@ loop:
 
 	}
 	lineChannel = nil
-}
-
-// ReadLine read's a line into a channel
-func (sio *SerialIO) ReadLine(logger *zap.SugaredLogger) chan string {
-	ch := make(chan string)
-
-	go func() {
-		reader := bufio.NewReader(sio.conn)
-		for {
-			logger.Debugw("Reading line...")
-			line, err := reader.ReadString('\n')
-			if err != nil {
-
-				// we probably don't need to log this, it'll happen once and the read loop will stop
-				logger.Warnw("Failed to read line from serial", "error", err, "line", line)
-				return
-			}
-
-			// no reason to log here, just deliver the line to the channel
-			logger.Debugw("Read new line", "line", line)
-			ch <- line
-			logger.Debugw("Pushed line into channel")
-		}
-	}()
-
-	return ch
 }
 
 func (sio *SerialIO) setupOnConfigReload() {
