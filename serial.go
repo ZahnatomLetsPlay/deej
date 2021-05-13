@@ -123,17 +123,21 @@ func (sio *SerialIO) Start() error {
 	// read lines or await a stop
 
 	go func() {
+		sio.logger.Debug("before new linechannel")
 		lineChannel := sio.ReadLine(sio.namedLogger)
+		sio.logger.Debug("after new linechannel")
 		sio.running = true
 
 		// Ensue proper lines befor affecting the users volume
-		for i := 0; i < 5; i++ {
-			sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-			select {
-			case line := <-lineChannel:
-				// fmt.Println(line)
-				_ = line
-			case <-time.After(1 * time.Second):
+		if !sio.firstline {
+			for i := 0; i < 5; i++ {
+				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+				select {
+				case line := <-lineChannel:
+					sio.logger.Debug(line)
+					_ = line
+				case <-time.After(1 * time.Second):
+				}
 			}
 		}
 
@@ -150,13 +154,11 @@ func (sio *SerialIO) Start() error {
 					vols := sio.deej.sessions.deej.GetSessionMap().getVolumes()
 					sio.logger.Debug("actual volumes", vols)
 					sio.WriteValues(sio.namedLogger, vols)
+					sio.Flush(sio.namedLogger)
 				}
 
 				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-				//lineChannel := sio.ReadLine(sio.namedLogger)
 				var line string
-				linetest := <-lineChannel
-				sio.logger.Debug(linetest)
 				select {
 				case line = <-lineChannel:
 					sio.handleLine(sio.namedLogger, line)
@@ -167,7 +169,7 @@ func (sio *SerialIO) Start() error {
 				case <-time.After(1 * time.Second):
 					break
 				}
-
+				sio.logger.Debug(line)
 			}
 		}
 
