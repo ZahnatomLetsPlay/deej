@@ -123,13 +123,14 @@ func (sio *SerialIO) Start() error {
 	// read lines or await a stop
 
 	go func() {
+		sio.WriteStringLine(sio.namedLogger, "deej.core.start")
 		lineChannel := sio.ReadLine(sio.namedLogger)
 		sio.running = true
 
 		// Ensue proper lines befor affecting the users volume
 		if !sio.firstline {
 			for i := 0; i < 5; i++ {
-				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+				//sio.WriteStringLine(sio.namedLogger, "deej.core.values")
 				select {
 				case line := <-lineChannel:
 					sio.logger.Debug(line)
@@ -142,6 +143,7 @@ func (sio *SerialIO) Start() error {
 		for {
 			select {
 			case <-sio.stopChannel:
+				sio.WriteStringLine(sio.namedLogger, "deej.core.stop")
 				lineChannel = nil
 				sio.running = false
 				sio.firstline = false
@@ -155,19 +157,18 @@ func (sio *SerialIO) Start() error {
 					sio.Flush(sio.namedLogger)
 				}
 
-				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+				//sio.WriteStringLine(sio.namedLogger, "deej.core.values")
 				var line string
 				select {
 				case line = <-lineChannel:
 					sio.handleLine(sio.namedLogger, line)
 					sio.logger.Debug("Received:", line)
 					if !sio.firstline {
-						//sio.firstline = true
+						sio.firstline = true
 					}
 				case <-time.After(1 * time.Second):
 					break
 				}
-				sio.logger.Debug(line)
 			}
 		}
 
@@ -340,19 +341,21 @@ func (sio *SerialIO) ReadLine(logger *zap.SugaredLogger) chan string {
 	ch := make(chan string)
 
 	go func() {
+		reader := bufio.NewReader(sio.conn)
 		for {
-			line, err := bufio.NewReader(sio.conn).ReadString('\n')
-			sio.logger.Debug(line)
+			logger.Debugw("Reading line...")
+			line, err := reader.ReadString('\n')
 			if err != nil {
 
 				// we probably don't need to log this, it'll happen once and the read loop will stop
-				// logger.Warnw("Failed to read line from serial", "error", err, "line", line)
+				logger.Warnw("Failed to read line from serial", "error", err, "line", line)
 				return
 			}
 
 			// no reason to log here, just deliver the line to the channel
-			// logger.Debugw("Read new line", "line", line)
+			logger.Debugw("Read new line", "line", line)
 			ch <- line
+			logger.Debugw("Pushed line into channel")
 		}
 	}()
 
