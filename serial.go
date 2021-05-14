@@ -165,13 +165,13 @@ func (sio *SerialIO) Start() error {
 				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
 
 				sio.logger.Debug("requesting values done")
-
+				sio.logger.Debug(sio.firstline)
 				select {
 				case line := <-lineChannel:
 					sio.handleLine(sio.namedLogger, line)
 					sio.logger.Debug("Received:", line)
 					if !sio.firstline {
-						//sio.firstline = true
+						sio.firstline = true
 					} else {
 						sio.WriteValues(sio.namedLogger, sio.deej.sessions.deej.GetSessionMap().getVolumes())
 					}
@@ -277,7 +277,8 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) {
 			line += "|"
 		}
 	}
-	sio.WriteStringLine(logger, "deej.core.receive\n"+line)
+	sio.WriteStringLine(logger, "deej.core.receive")
+	sio.WriteStringLine(logger, line)
 	sio.logger.Debug("Sending values:", line)
 }
 

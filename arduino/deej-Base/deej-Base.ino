@@ -24,13 +24,13 @@ String outboundCommands = "";
 
 void setup() { 
   Serial.begin(SERIALSPEED);
-  //Serial.print("INITBEGIN");
+  Serial.println("INITBEGIN");
   pinMode(LED_BUILTIN, OUTPUT);
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
     pinMode(analogInputs[i], INPUT);
   }
 
-  //Serial.println("INITDONE");
+  Serial.println("INITDONE");
   //Serial.println("");
 }
 
@@ -116,7 +116,7 @@ void printSliderValues() {
 
 void checkForCommand() {
   //Check if data is waiting
-  //if (Serial.available() > 0) {
+  if (Serial.available() > 0) {
     //Get start time of command
     unsigned long timeStart = millis();
 
@@ -154,27 +154,31 @@ void checkForCommand() {
 
       // Receive Values
       else if(input.equalsIgnoreCase("deej.core.receive") == true){
-        String receive = Serial.readStringUntil("\n");
-        char split[receive.length()];
-        receive.toCharArray(split, receive.length());
-        char* piece = strtok(split, "|");
-        //Serial.print("Received: ");
-        for(int i = 0; piece!= NULL; i++){
-          //Serial.println(piece);
-          String value = String(piece);
-          volumeValues[i] = value.toInt();
-          //Serial.print(value.toInt());
-          //Serial.print("|");
-          piece = strtok(NULL, "|");
+        delay(10);
+        if(Serial.available() > 0){
+          String receive = Serial.readStringUntil("\n");
+          char split[receive.length()];
+          receive.toCharArray(split, receive.length());
+          char* piece = strtok(split, "|");
+          //Serial.print("Received: ");
+          for(int i = 0; piece!= NULL; i++){
+            //Serial.println(piece);
+            String value = String(piece);
+            volumeValues[i] = value.toInt();
+            //Serial.print(value.toInt());
+            //Serial.print("|");
+            piece = strtok(NULL, "|");
+          }
+          //Serial.println();
+          receivednewvalues = true;
+          Serial.println("received: " + receive + "          " + input);
+          //Serial.println(receive);
+          /*for(int i = 0; i<NUM_SLIDERS; i++){
+            String value = Serial.readStringUntil("|");
+            Serial.println(value);
+            volumeValues[i] = value.toInt();
+          }*/
         }
-        //Serial.println();
-        receivednewvalues = true;
-        //Serial.println(receive);
-        /*for(int i = 0; i<NUM_SLIDERS; i++){
-          String value = Serial.readStringUntil("|");
-          Serial.println(value);
-          volumeValues[i] = value.toInt();
-        }*/
       }
 
       else if ( input.equalsIgnoreCase("deej.core.reboot") == true ) {
@@ -187,5 +191,5 @@ void checkForCommand() {
         return;
       }
     }
-  //}
+  }
 }
