@@ -109,7 +109,7 @@ void printSliderValues() {
     if (i < NUM_SLIDERS - 1) {
       Serial.print(" | ");
     } else {
-      Serial.println();
+      Serial.println(" END ");
     }
   }
 }
@@ -121,8 +121,8 @@ void checkForCommand() {
     unsigned long timeStart = millis();
 
     //Get data from Serial
-    String input = Serial.readStringUntil("\r\n");  // Read chars from serial monitor
-    //Serial.println(input);
+    String input = Serial.readStringUntil('\r');  // Read chars from serial monitor
+    Serial.readStringUntil('\n');
     //If data takes to long
     if(millis()-timeStart >= SerialTimeout) {
       Serial.println("TIMEOUT");
@@ -154,33 +154,20 @@ void checkForCommand() {
 
       // Receive Values
       else if(input.equalsIgnoreCase("deej.core.receive") == true){
-        //if(Serial.available() > 0){
-          String receive = Serial.readStringUntil("\r\n");
-          Serial.println(receive.length());
-          char split[receive.length()];
-          receive.toCharArray(split, receive.length());
-          char* piece = strtok(split, "|");
-          //Serial.print("Received: ");
-          for(int i = 0; piece!= NULL; i++){
-            //Serial.println(piece);
-            String value = String(piece);
-            volumeValues[i] = value.toInt();
-            //Serial.print(value.toInt());
-            //Serial.print("|");
-            piece = strtok(NULL, "|");
-          }
-          //Serial.println();
-          receivednewvalues = true;
-          Serial.println("received: " + receive + "          " + input);
-          //Serial.println(receive);
-          /*for(int i = 0; i<NUM_SLIDERS; i++){
-            String value = Serial.readStringUntil("|");
-            Serial.println(value);
-            volumeValues[i] = value.toInt();
-          }*/
-        //}
+        String receive = Serial.readStringUntil('\r');
+        Serial.readStringUntil('\n');
+        Serial.println(receive);
+        char split[receive.length()];
+        receive.toCharArray(split, receive.length());
+        char* piece = strtok(split, "|");
+        for(int i = 0; piece!= NULL; i++){
+          String value = String(piece);
+          volumeValues[i] = value.toInt();
+          piece = strtok(NULL, "|");
+        }
+        receivednewvalues = true;
       }
-
+      
       else if ( input.equalsIgnoreCase("deej.core.reboot") == true ) {
         reboot();
       }
