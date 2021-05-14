@@ -129,17 +129,6 @@ func (sio *SerialIO) Start() error {
 		sio.firstline = false
 		//sio.WriteStringLine(sio.namedLogger, "deej.core.start")
 
-		/*for {
-			select {
-			case line := <-lineChannel:
-				sio.logger.Debug(line)
-				if line == "\n" {
-					sio.WriteStringLine(sio.namedLogger, "deej.core.start")
-				}
-			case <-time.After(1 * time.Second):
-			}
-		}*/
-
 		// Ensue proper lines befor affecting the users volume
 		for i := 0; i < 5; i++ {
 			sio.WriteStringLine(sio.namedLogger, "deej.core.values")
@@ -194,7 +183,8 @@ func (sio *SerialIO) ReadLine(logger *zap.SugaredLogger) chan string {
 		reader := bufio.NewReader(sio.conn)
 		for {
 			logger.Debugw("Reading line...")
-			line, err := reader.ReadString('\n')
+			line, err := reader.ReadString(byte('\r'))
+			reader.ReadString(byte('\n'))
 			if err != nil {
 
 				// we probably don't need to log this, it'll happen once and the read loop will stop
@@ -285,7 +275,7 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) {
 // WriteStringLine retruns nothing
 // Writes a string to the serial port
 func (sio *SerialIO) WriteStringLine(logger *zap.SugaredLogger, line string) {
-	_, err := sio.conn.Write([]byte(line + "\n"))
+	_, err := sio.conn.Write([]byte(line + "\r\n"))
 	if err != nil {
 
 		// we probably don't need to log this, it'll happen once and the read loop will stop
@@ -312,7 +302,7 @@ func (sio *SerialIO) WriteBytesLine(logger *zap.SugaredLogger, line []byte) {
 		// logger.Warnw("Failed to read line from serial", "error", err, "line", line)
 		return
 	}
-	_, err = sio.conn.Write([]byte("\n"))
+	_, err = sio.conn.Write([]byte("\r\n"))
 
 	if err != nil {
 

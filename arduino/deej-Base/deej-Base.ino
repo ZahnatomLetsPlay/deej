@@ -156,9 +156,9 @@ void checkForCommand() {
       else if(input.equalsIgnoreCase("deej.core.receive") == true){
         String receive = Serial.readStringUntil('\r');
         Serial.readStringUntil('\n');
-        Serial.println(receive);
+        //Serial.println(receive);
         char split[receive.length()];
-        receive.toCharArray(split, receive.length());
+        receive.toCharArray(split, receive.length()+1);
         char* piece = strtok(split, "|");
         for(int i = 0; piece!= NULL; i++){
           String value = String(piece);
