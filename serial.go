@@ -114,17 +114,22 @@ func (sio *SerialIO) Initialize() error {
 	//sio.WriteStringLine(sio.namedLogger, "deej.core.start")
 
 	sio.namedLogger.Infow("Connected", "conn", sio.conn)
-	sio.connected = true
-
+	//sio.connected = true
+	sio.conn.Close()
 	return nil
 }
 
 // Start attempts to connect to our arduino chip
 func (sio *SerialIO) Start() error {
 	// read lines or await a stop
-
+	lineChannel := sio.ReadLine(sio.namedLogger)
+	var err error
+	sio.conn, err = serial.Open(sio.connOptions)
+	if err != nil {
+		sio.namedLogger.Warnw("Failed to open serial connection", "error", err)
+		return err
+	}
 	go func() {
-		lineChannel := sio.ReadLine(sio.namedLogger)
 		sio.running = true
 		sio.firstline = false
 		//sio.WriteStringLine(sio.namedLogger, "deej.core.start")
@@ -183,8 +188,9 @@ func (sio *SerialIO) ReadLine(logger *zap.SugaredLogger) chan string {
 		reader := bufio.NewReader(sio.conn)
 		for {
 			logger.Debugw("Reading line...")
-			line, err := reader.ReadString(byte('\r'))
-			reader.ReadString(byte('\n'))
+			line, err := reader.ReadString('\n')
+			//logger.Debugw("Done reading /r")
+			reader.ReadString('\n')
 			if err != nil {
 
 				// we probably don't need to log this, it'll happen once and the read loop will stop
@@ -275,14 +281,15 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) {
 // WriteStringLine retruns nothing
 // Writes a string to the serial port
 func (sio *SerialIO) WriteStringLine(logger *zap.SugaredLogger, line string) {
-	_, err := sio.conn.Write([]byte(line + "\r\n"))
+	logger.Debug("Writing: " + (line + "\\r\\n"))
+	_, err := sio.conn.Write([]byte((line + "\\r\\n")))
 	if err != nil {
 
 		// we probably don't need to log this, it'll happen once and the read loop will stop
 		// logger.Warnw("Failed to read line from serial", "error", err, "line", line)
 		return
 	}
-	/*_, err = sio.conn.Write([]byte("\n"))
+	/*_, err = sio.conn.Write([]byte("\r\n"))
 
 	if err != nil {
 

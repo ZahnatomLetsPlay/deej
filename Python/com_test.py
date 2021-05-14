@@ -1,4 +1,5 @@
 import serial
+import time
 
 ser = serial.Serial('COM6',9600)
 
@@ -21,3 +22,7 @@ while True:
     if send:
         print("sending", data)
         ser.write(data)
+    print("------------")
+    print(data)
+    print("------------")
+    time.sleep(0.1)

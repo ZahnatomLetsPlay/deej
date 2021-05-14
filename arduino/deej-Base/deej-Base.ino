@@ -70,11 +70,12 @@ void updateSliderValues() {
 }
 
 void sendSliderValues() {
+  String sendvals = "";
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
-    Serial.print(analogSliderValues[i]);
+    sendvals += analogSliderValues[i];
 
     if (i < NUM_SLIDERS - 1) {
-      Serial.print("|");
+      sendvals += "|";
     }
   }
   /*if (outboundCommands != "") {
@@ -83,7 +84,7 @@ void sendSliderValues() {
     outboundCommands = "";
   }*/
 
-  Serial.println();
+  Serial.println(sendvals);
 }
 
 void addCommand(String cmd) {
