@@ -121,7 +121,7 @@ void checkForCommand() {
     unsigned long timeStart = millis();
 
     //Get data from Serial
-    String input = Serial.readStringUntil('\n');  // Read chars from serial monitor
+    String input = Serial.readStringUntil("\r\n");  // Read chars from serial monitor
     //Serial.println(input);
     //If data takes to long
     if(millis()-timeStart >= SerialTimeout) {
@@ -154,9 +154,9 @@ void checkForCommand() {
 
       // Receive Values
       else if(input.equalsIgnoreCase("deej.core.receive") == true){
-        delay(10);
-        if(Serial.available() > 0){
-          String receive = Serial.readStringUntil("\n");
+        //if(Serial.available() > 0){
+          String receive = Serial.readStringUntil("\r\n");
+          Serial.println(receive.length());
           char split[receive.length()];
           receive.toCharArray(split, receive.length());
           char* piece = strtok(split, "|");
@@ -178,7 +178,7 @@ void checkForCommand() {
             Serial.println(value);
             volumeValues[i] = value.toInt();
           }*/
-        }
+        //}
       }
 
       else if ( input.equalsIgnoreCase("deej.core.reboot") == true ) {

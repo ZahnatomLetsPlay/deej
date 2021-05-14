@@ -2,7 +2,7 @@ import time
 import serial
 
 print("opening serial connection")
-ser = serial.Serial('COM8', 9600)
+ser = serial.Serial('COM8', 115200)
 print("serial connection open")
 
 data = b'1023|900|800|700|600|500\n'
@@ -14,7 +14,6 @@ data = b'1023|900|800|700|600|500\n'
 #    line = ser.readline()
 #    print("received")
 #    print("Line:", line)
-ser.write(b'deej.core.start\n')
 start = False
 
 for i in range(0,10):
