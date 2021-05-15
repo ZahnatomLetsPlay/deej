@@ -9,7 +9,7 @@
 #define NUM_SLIDERS 6
 #define SERIALSPEED 9600
 #define FrequencyMS 10
-#define SerialTimeout 2000 //This is two seconds
+#define SerialTimeout 5000 //This is two seconds
 
 const uint8_t analogInputs[NUM_SLIDERS] = {A0, 19, 20, 21, 9, 8};
 
@@ -25,7 +25,10 @@ String outboundCommands = "";
 void setup() { 
   Serial.begin(SERIALSPEED);
   Serial.println("INITBEGIN");
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(7, OUTPUT);
+  pinMode(6, OUTPUT);
+  pinMode(5, OUTPUT);
+  pinMode(4, OUTPUT);
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
     pinMode(analogInputs[i], INPUT);
   }
@@ -115,15 +118,38 @@ void printSliderValues() {
   }
 }
 
+bool led = false;
+bool led2 = false;
+bool led3 = false;
+bool led4 = false;
 void checkForCommand() {
   //Check if data is waiting
   if (Serial.available() > 0) {
     //Get start time of command
+      if(led){
+        digitalWrite(7, LOW);
+        led = false;
+        delay(500);
+      } else {
+        digitalWrite(7, HIGH);
+        led = true;
+        delay(500);
+      }
     unsigned long timeStart = millis();
 
     //Get data from Serial
+    
     String input = Serial.readStringUntil('\r');  // Read chars from serial monitor
     Serial.readStringUntil('\n');
+    if(led2){
+      digitalWrite(6, LOW);
+        led2 = false;
+      delay(500);
+    } else {
+      digitalWrite(6, HIGH);
+        led2 = true;
+      delay(500);
+    }
     //If data takes to long
     if(millis()-timeStart >= SerialTimeout) {
       Serial.println("TIMEOUT");
@@ -132,7 +158,6 @@ void checkForCommand() {
 
     // Check and match commands
     else {
-       
       // Start Sending Slider Values
       if ( input.equalsIgnoreCase("deej.core.start") == true ) {
         pushSliderValuesToPC = true;
@@ -155,10 +180,34 @@ void checkForCommand() {
 
       // Receive Values
       else if(input.equalsIgnoreCase("deej.core.receive") == true){
+        if(Serial.available() > (4*NUM_SLIDERS+(NUM_SLIDERS-1))+2 || Serial.available() < (1*NUM_SLIDERS+(NUM_SLIDERS-1))+2){
+          String receive = Serial.readStringUntil('\r');
+          Serial.readStringUntil('\n');
+          Serial.println("INVALID DATA: " + receive);
+          return;
+        }
+        if(led4){
+          digitalWrite(4, LOW);
+            led4 = false;
+          delay(500);
+        } else {
+          digitalWrite(4, HIGH);
+            led4 = true;
+          delay(500);
+        }
         String receive = Serial.readStringUntil('\r');
         Serial.readStringUntil('\n');
-        //Serial.println(receive);
-        char split[receive.length()];
+        if(led4){
+          digitalWrite(4, LOW);
+            led4 = false;
+          delay(500);
+        } else {
+          digitalWrite(4, HIGH);
+            led4 = true;
+          delay(500);
+        }
+        Serial.println(receive);
+        /*char split[receive.length()];
         receive.toCharArray(split, receive.length()+1);
         char* piece = strtok(split, "|");
         for(int i = 0; piece!= NULL; i++){
@@ -166,7 +215,7 @@ void checkForCommand() {
           volumeValues[i] = value.toInt();
           piece = strtok(NULL, "|");
         }
-        receivednewvalues = true;
+        receivednewvalues = true;*/
       }
       
       else if ( input.equalsIgnoreCase("deej.core.reboot") == true ) {
@@ -180,4 +229,13 @@ void checkForCommand() {
       }
     }
   }
+  if(led3){
+      digitalWrite(5, LOW);
+        led3 = false;
+      delay(500);
+    } else {
+      digitalWrite(5, HIGH);
+        led3 = true;
+      delay(500);
+    }
 }
