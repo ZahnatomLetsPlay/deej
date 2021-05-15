@@ -1,11 +1,13 @@
 import time
 import serial
+import random
 
 print("opening serial connection")
 ser = serial.Serial('COM8', 9600)
 print("serial connection open")
 
-data = b'1023|1022|1021|1020|1019|1018\r\n'
+data = "651|987|169|189|486|007\r\n"
+dataold = ""
 
 for i in range(0,5):
     ser.write(b'deej.core.values\r\n')
@@ -14,21 +16,27 @@ for i in range(0,5):
 
 start = False
 
-for i in range(0,3):
+for i in range(0,100):
     #ser.write(b'deej.core.values\n')
     if not start:
         start = True
         #ser.write(b'deej.core.start\r\n')
-    print("commanding to give values")
+    #print("commanding to give values")
     ser.write(b'deej.core.values\r\n')
-    print("commanded to give values, reading...")
+    #print("commanded to give values, reading...")
     line = ser.readline()
     print(line)
-    time.sleep(0.1)
     ser.write(b'deej.core.receive\r\n')
-    ser.write(data)
+    ser.write(bytes(data, "ASCII"))
     line = ser.readline()
-    print(line)
+    print(line, "correct:", (line == bytes(dataold, "ASCII")))
+    dataold = data + ""
+    data = "" + str(random.randint(0,1023)) + "|"
+    data = data + str(random.randint(0,1023)) + "|"
+    data = data + str(random.randint(0,1023)) + "|"
+    data = data + str(random.randint(0,1023)) + "|"
+    data = data + str(random.randint(0,1023)) + "|"
+    data = data + str(random.randint(0,1023)) + "\r\n"
     #time.sleep(0.1)
 ser.close()
 

@@ -126,30 +126,30 @@ void checkForCommand() {
   //Check if data is waiting
   if (Serial.available() > 0) {
     //Get start time of command
-      if(led){
+      /*if(led){
         digitalWrite(7, LOW);
         led = false;
-        delay(500);
+        delay(FrequencyMS);
       } else {
         digitalWrite(7, HIGH);
         led = true;
-        delay(500);
-      }
+        delay(FrequencyMS);
+      }*/
     unsigned long timeStart = millis();
 
     //Get data from Serial
     
     String input = Serial.readStringUntil('\r');  // Read chars from serial monitor
     Serial.readStringUntil('\n');
-    if(led2){
+    /*if(led2){
       digitalWrite(6, LOW);
         led2 = false;
-      delay(500);
+      delay(FrequencyMS);
     } else {
       digitalWrite(6, HIGH);
         led2 = true;
-      delay(500);
-    }
+      delay(FrequencyMS);
+    }*/
     //If data takes to long
     if(millis()-timeStart >= SerialTimeout) {
       Serial.println("TIMEOUT");
@@ -180,34 +180,40 @@ void checkForCommand() {
 
       // Receive Values
       else if(input.equalsIgnoreCase("deej.core.receive") == true){
-        if(Serial.available() > (4*NUM_SLIDERS+(NUM_SLIDERS-1))+2 || Serial.available() < (1*NUM_SLIDERS+(NUM_SLIDERS-1))+2){
+        /*if(Serial.available() > (4*NUM_SLIDERS+(NUM_SLIDERS-1))+4 || Serial.available() == 0 || Serial.available() < (1*NUM_SLIDERS+(NUM_SLIDERS-1))+4){
           String receive = Serial.readStringUntil('\r');
           Serial.readStringUntil('\n');
           Serial.println("INVALID DATA: " + receive);
           return;
-        }
-        if(led4){
+        }*/
+        /*if(led4){
           digitalWrite(4, LOW);
             led4 = false;
-          delay(500);
+          delay(FrequencyMS);
         } else {
           digitalWrite(4, HIGH);
             led4 = true;
-          delay(500);
-        }
+          delay(FrequencyMS);
+        }*/
         String receive = Serial.readStringUntil('\r');
         Serial.readStringUntil('\n');
-        if(led4){
+
+        if(receive.length() > (4*NUM_SLIDERS+(NUM_SLIDERS-1)) || receive.length() < (1*NUM_SLIDERS+(NUM_SLIDERS-1))){
+          Serial.println("INVALID DATA: " + receive);
+          return;
+        }
+        
+        /*if(led4){
           digitalWrite(4, LOW);
             led4 = false;
-          delay(500);
+          delay(FrequencyMS);
         } else {
           digitalWrite(4, HIGH);
             led4 = true;
-          delay(500);
-        }
+          delay(FrequencyMS);
+        }*/
         Serial.println(receive);
-        /*char split[receive.length()];
+        char split[receive.length()];
         receive.toCharArray(split, receive.length()+1);
         char* piece = strtok(split, "|");
         for(int i = 0; piece!= NULL; i++){
@@ -215,7 +221,7 @@ void checkForCommand() {
           volumeValues[i] = value.toInt();
           piece = strtok(NULL, "|");
         }
-        receivednewvalues = true;*/
+        /*receivednewvalues = true;*/
       }
       
       else if ( input.equalsIgnoreCase("deej.core.reboot") == true ) {
@@ -229,13 +235,13 @@ void checkForCommand() {
       }
     }
   }
-  if(led3){
+  /*if(led3){
       digitalWrite(5, LOW);
         led3 = false;
-      delay(500);
+      delay(FrequencyMS);
     } else {
       digitalWrite(5, HIGH);
         led3 = true;
-      delay(500);
-    }
+      delay(FrequencyMS);
+    }*/
 }
