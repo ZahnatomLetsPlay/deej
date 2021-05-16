@@ -26,8 +26,9 @@ for i in range(0,100):
     #print("commanded to give values, reading...")
     line = ser.readline()
     print(line)
-    ser.write(b'deej.core.receive\r\n')
-    ser.write(bytes(data, "ASCII"))
+    #ser.write(b'deej.core.receive\r\n')
+    #ser.write(bytes(data, "ASCII"))
+    ser.write(bytes("deej.core.receive\r\n" + data, "ASCII"))
     line = ser.readline()
     print(line, "correct:", (line == bytes(dataold, "ASCII")))
     dataold = data + ""

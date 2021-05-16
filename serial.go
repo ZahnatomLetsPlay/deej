@@ -30,6 +30,7 @@ type SerialIO struct {
 	connOptions serial.OpenOptions
 	conn        io.ReadWriteCloser
 	firstline   bool
+	reader      bufio.Reader
 
 	lastKnownNumSliders        int
 	currentSliderPercentValues []float32
@@ -61,6 +62,7 @@ func NewSerialIO(deej *Deej, logger *zap.SugaredLogger) (*SerialIO, error) {
 		sliderMoveConsumers:    []chan SliderMoveEvent{},
 		running:                false,
 		returnCommandConsumers: []chan string{},
+		reader:                 nil,
 	}
 
 	logger.Debug("Created serial i/o instance")
@@ -115,23 +117,20 @@ func (sio *SerialIO) Initialize() error {
 
 	sio.namedLogger.Infow("Connected", "conn", sio.conn)
 	//sio.connected = true
-	sio.conn.Close()
+	//sio.conn.Close()
+	sio.reader = bufio.NewReader(sio.conn)
 	return nil
 }
 
 // Start attempts to connect to our arduino chip
 func (sio *SerialIO) Start() error {
 	// read lines or await a stop
-	lineChannel := sio.ReadLine(sio.namedLogger)
-	var err error
-	sio.conn, err = serial.Open(sio.connOptions)
-	if err != nil {
-		sio.namedLogger.Warnw("Failed to open serial connection", "error", err)
-		return err
-	}
+	//lineChannel := sio.ReadLine(sio.namedLogger)
+
 	go func() {
 		sio.running = true
 		sio.firstline = false
+		var line string
 		//sio.WriteStringLine(sio.namedLogger, "deej.core.start")
 
 		// Ensue proper lines befor affecting the users volume
@@ -149,18 +148,29 @@ func (sio *SerialIO) Start() error {
 			select {
 			case <-sio.stopChannel:
 				sio.WriteStringLine(sio.namedLogger, "deej.core.stop")
-				lineChannel = nil
+				//lineChannel = nil
 				sio.running = false
 				sio.firstline = false
 				return
 			default:
-				sio.logger.Debug("Run")
+				//sio.logger.Debug("Run")
 
 				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
 
-				sio.logger.Debug("requesting values done")
-				sio.logger.Debug(sio.firstline)
-				select {
+				//sio.logger.Debug("requesting values done")
+				//var line string
+				_, line = sio.WaitFor(sio.namedLogger, "")
+
+				if line != "" {
+					//sio.logger.Debug("Received:", line)
+					sio.handleLine(sio.namedLogger, line)
+				}
+
+				vals := sio.deej.GetSessionMap().getVolumes()
+				valstring := sio.WriteValues(sio.namedLogger, vals)
+				_, _ = sio.WaitFor(sio.namedLogger, valstring)
+
+				/*select {
 				case line := <-lineChannel:
 					sio.handleLine(sio.namedLogger, line)
 					sio.logger.Debug("Received:", line)
@@ -171,7 +181,7 @@ func (sio *SerialIO) Start() error {
 					}
 				case <-time.After(1 * time.Second):
 					break
-				}
+				}*/
 			}
 		}
 
@@ -185,10 +195,9 @@ func (sio *SerialIO) ReadLine(logger *zap.SugaredLogger) chan string {
 	ch := make(chan string)
 
 	go func() {
-		reader := bufio.NewReader(sio.conn)
 		for {
 			logger.Debugw("Reading line...")
-			line, err := reader.ReadString('\n')
+			line, err := bufio.NewReader(sio.conn).ReadString('\n')
 			//logger.Debugw("Done reading /r")
 			//reader.ReadString('\n')
 			if err != nil {
@@ -265,7 +274,7 @@ func (sio *SerialIO) notifyConsumers(command string) {
 }
 
 // Writes values to the serial port with required command
-func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) {
+func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) string {
 	line := ""
 	for index, value := range values {
 		line += strconv.FormatFloat(float64(value*1023.0), 'f', 0, 64)
@@ -275,15 +284,16 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) {
 	}
 	sio.WriteStringLine(logger, "deej.core.receive")
 	sio.WriteStringLine(logger, line)
-	sio.logger.Debug("Sending values:", line)
+	//sio.logger.Debug("Sending values:", line)
+	return line
 }
 
 // WriteStringLine retruns nothing
 // Writes a string to the serial port
 func (sio *SerialIO) WriteStringLine(logger *zap.SugaredLogger, line string) {
-	logger.Debug("Writing: " + (line + "\\r\\n"))
+	//logger.Debug("Writing: " + (line + "\\r\\n"))
 	//writer := bufio.NewWriter(sio.conn)
-	_, err := sio.conn.Write([]byte((line + "\\r\\n")))
+	_, err := sio.conn.Write([]byte((line + "\r\n")))
 	//_, err := writer.WriteString(line + "\\r\\n")
 	//writer = nil
 	if err != nil {
@@ -336,10 +346,17 @@ func (sio *SerialIO) WriteBytes(logger *zap.SugaredLogger, line []byte) {
 
 // WaitFor returns nothing
 // Waits for the specified line befor continueing
-func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success bool, value string) {
-	lineChannel := sio.ReadLine(sio.logger)
+func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, reader *bufio.Reader, cmdKey string) (success bool, value string) {
+	//lineChannel := sio.ReadLine(sio.logger)
 
-	line := <-lineChannel
+	//line := <-lineChannel
+
+	line, err := reader.ReadString('\n')
+
+	if err != nil {
+		sio.logger.Error("Error reading line", "Error: ", err, "Line: ", line)
+		return false, ""
+	}
 
 	if len(line) > 1 {
 
@@ -347,12 +364,14 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 			return true, line
 		}
 
-		logger.Error("Serial Device Error: " + line)
+		/*if cmdKey != "" {
+			logger.Error("Serial Device Error: " + line)
+		}*/
 
 		return false, line
 	}
 
-	lineChannel = nil
+	//lineChannel = nil
 
 	return
 }
