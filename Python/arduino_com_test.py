@@ -8,6 +8,7 @@ print("serial connection open")
 
 data = "651|987|169|189|486|007\r\n"
 dataold = ""
+ms = time.time()*1000
 
 for i in range(0,5):
     ser.write(b'deej.core.values\r\n')
@@ -40,5 +41,7 @@ for i in range(0,100):
     data = data + str(random.randint(0,1023)) + "\r\n"
     #time.sleep(0.1)
 ser.close()
+ms = time.time()*1000-ms
+print(ms)
 
 

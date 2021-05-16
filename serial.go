@@ -62,7 +62,7 @@ func NewSerialIO(deej *Deej, logger *zap.SugaredLogger) (*SerialIO, error) {
 		sliderMoveConsumers:    []chan SliderMoveEvent{},
 		running:                false,
 		returnCommandConsumers: []chan string{},
-		reader:                 nil,
+		reader:                 bufio.Reader{},
 	}
 
 	logger.Debug("Created serial i/o instance")
@@ -118,7 +118,8 @@ func (sio *SerialIO) Initialize() error {
 	sio.namedLogger.Infow("Connected", "conn", sio.conn)
 	//sio.connected = true
 	//sio.conn.Close()
-	sio.reader = bufio.NewReader(sio.conn)
+	reader := bufio.NewReader(sio.conn)
+	sio.reader = *reader
 	return nil
 }
 
@@ -131,6 +132,7 @@ func (sio *SerialIO) Start() error {
 		sio.running = true
 		sio.firstline = false
 		var line string
+		var oldline string
 		//sio.WriteStringLine(sio.namedLogger, "deej.core.start")
 
 		// Ensue proper lines befor affecting the users volume
@@ -143,8 +145,9 @@ func (sio *SerialIO) Start() error {
 			case <-time.After(1 * time.Second):
 			}
 		}*/
-
-		for {
+		millis := time.Now().UnixNano() / 1000000
+		i := 0
+		for i != 100 {
 			select {
 			case <-sio.stopChannel:
 				sio.WriteStringLine(sio.namedLogger, "deej.core.stop")
@@ -154,22 +157,23 @@ func (sio *SerialIO) Start() error {
 				return
 			default:
 				//sio.logger.Debug("Run")
-
 				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
 
 				//sio.logger.Debug("requesting values done")
 				//var line string
 				_, line = sio.WaitFor(sio.namedLogger, "")
 
-				if line != "" {
-					//sio.logger.Debug("Received:", line)
+				if line != "" && line != oldline {
+					sio.logger.Debug("Received:", line)
 					sio.handleLine(sio.namedLogger, line)
+					oldline = line
 				}
 
 				vals := sio.deej.GetSessionMap().getVolumes()
+				var truefalse bool
 				valstring := sio.WriteValues(sio.namedLogger, vals)
-				_, _ = sio.WaitFor(sio.namedLogger, valstring)
-
+				truefalse, line = sio.WaitFor(sio.namedLogger, valstring+"\r")
+				sio.logger.Debug(line, "correct:", truefalse)
 				/*select {
 				case line := <-lineChannel:
 					sio.handleLine(sio.namedLogger, line)
@@ -182,9 +186,13 @@ func (sio *SerialIO) Start() error {
 				case <-time.After(1 * time.Second):
 					break
 				}*/
+				i++
 			}
 		}
 
+		millis = time.Now().UnixNano()/1000000 - millis
+		sio.logger.Debug(millis)
+		sio.deej.signalStop()
 	}()
 
 	return nil
@@ -346,12 +354,16 @@ func (sio *SerialIO) WriteBytes(logger *zap.SugaredLogger, line []byte) {
 
 // WaitFor returns nothing
 // Waits for the specified line befor continueing
-func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, reader *bufio.Reader, cmdKey string) (success bool, value string) {
+func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success bool, value string) {
 	//lineChannel := sio.ReadLine(sio.logger)
 
 	//line := <-lineChannel
 
-	line, err := reader.ReadString('\n')
+	line, err := sio.reader.ReadString('\r')
+
+	go func() {
+		sio.reader.ReadString('\n')
+	}()
 
 	if err != nil {
 		sio.logger.Error("Error reading line", "Error: ", err, "Line: ", line)
