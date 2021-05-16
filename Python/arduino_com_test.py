@@ -17,7 +17,7 @@ for i in range(0,5):
 
 start = False
 
-for i in range(0,100):
+for i in range(0,1000):
     #ser.write(b'deej.core.values\n')
     if not start:
         start = True

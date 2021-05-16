@@ -29,7 +29,6 @@ type SerialIO struct {
 	running     bool
 	connOptions serial.OpenOptions
 	conn        io.ReadWriteCloser
-	firstline   bool
 	reader      bufio.Reader
 
 	lastKnownNumSliders        int
@@ -130,69 +129,39 @@ func (sio *SerialIO) Start() error {
 
 	go func() {
 		sio.running = true
-		sio.firstline = false
 		var line string
 		var oldline string
-		//sio.WriteStringLine(sio.namedLogger, "deej.core.start")
 
-		// Ensue proper lines befor affecting the users volume
-		/*for i := 0; i < 5; i++ {
-			sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-			select {
-			case line := <-lineChannel:
-				sio.logger.Debug(line)
-				_ = line
-			case <-time.After(1 * time.Second):
-			}
-		}*/
-		millis := time.Now().UnixNano() / 1000000
+		//for testing a max limit
 		i := 0
-		for i != 100 {
+		//for i != 1000 {
+		for sio.running {
 			select {
 			case <-sio.stopChannel:
-				sio.WriteStringLine(sio.namedLogger, "deej.core.stop")
-				//lineChannel = nil
 				sio.running = false
-				sio.firstline = false
-				return
 			default:
-				//sio.logger.Debug("Run")
+				millis := time.Now().UnixNano() / 1000000
 				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
 
-				//sio.logger.Debug("requesting values done")
-				//var line string
 				_, line = sio.WaitFor(sio.namedLogger, "")
+				sio.logger.Debug("Received:", line)
 
 				if line != "" && line != oldline {
-					sio.logger.Debug("Received:", line)
 					sio.handleLine(sio.namedLogger, line)
 					oldline = line
 				}
 
 				vals := sio.deej.GetSessionMap().getVolumes()
-				var truefalse bool
 				sio.WriteValues(sio.namedLogger, vals)
-				truefalse, line = sio.WaitFor(sio.namedLogger, "")
-				sio.logger.Debug(line, "correct:", truefalse)
-				/*select {
-				case line := <-lineChannel:
-					sio.handleLine(sio.namedLogger, line)
-					sio.logger.Debug("Received:", line)
-					if !sio.firstline {
-						sio.firstline = true
-					} else {
-						sio.WriteValues(sio.namedLogger, sio.deej.sessions.deej.GetSessionMap().getVolumes())
-					}
-				case <-time.After(1 * time.Second):
-					break
-				}*/
+				_, line = sio.WaitFor(sio.namedLogger, "")
+				sio.logger.Debug("Sent:", line)
 				i++
+
+				millis = time.Now().UnixNano()/1000000 - millis
+				sio.logger.Debug(millis)
 			}
 		}
-
-		millis = time.Now().UnixNano()/1000000 - millis
-		sio.logger.Debug(millis)
-		sio.deej.signalStop()
+		//sio.deej.signalStop()
 	}()
 
 	return nil
@@ -300,25 +269,14 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) {
 // WriteStringLine retruns nothing
 // Writes a string to the serial port
 func (sio *SerialIO) WriteStringLine(logger *zap.SugaredLogger, line string) {
-	//logger.Debug("Writing: " + (line + "\\r\\n"))
-	//writer := bufio.NewWriter(sio.conn)
 	_, err := sio.conn.Write([]byte((line + "\r\n")))
-	//_, err := writer.WriteString(line + "\\r\\n")
-	//writer = nil
+
 	if err != nil {
 
 		// we probably don't need to log this, it'll happen once and the read loop will stop
 		// logger.Warnw("Failed to read line from serial", "error", err, "line", line)
 		return
 	}
-	/*_, err = sio.conn.Write([]byte("\r\n"))
-
-	if err != nil {
-
-		// we probably don't need to log this, it'll happen once and the read loop will stop
-		// logger.Warnw("Failed to read line from serial", "error", err, "line", line)
-		return
-	}*/
 }
 
 // WriteBytesLine retruns nothing
@@ -353,12 +311,9 @@ func (sio *SerialIO) WriteBytes(logger *zap.SugaredLogger, line []byte) {
 	}
 }
 
-// WaitFor returns nothing
+// WaitFor returns if the received string equals the given string
 // Waits for the specified line befor continueing
 func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success bool, value string) {
-	//lineChannel := sio.ReadLine(sio.logger)
-
-	//line := <-lineChannel
 
 	line, err := sio.reader.ReadString('\r')
 
@@ -377,14 +332,8 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 			return true, line
 		}
 
-		/*if cmdKey != "" {
-			logger.Error("Serial Device Error: " + line)
-		}*/
-
 		return false, line
 	}
-
-	//lineChannel = nil
 
 	return
 }
