@@ -3,7 +3,7 @@ import serial
 import random
 
 print("opening serial connection")
-ser = serial.Serial('COM8', 9600)
+ser = serial.Serial('COM8', 115200)
 print("serial connection open")
 
 data = "651|987|169|189|486|007\r\n"

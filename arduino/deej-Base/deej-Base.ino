@@ -7,7 +7,7 @@
 
 //You must Hard Code in the number of Sliders in
 #define NUM_SLIDERS 6
-#define SERIALSPEED 9600
+#define SERIALSPEED 115200
 #define FrequencyMS 10
 #define SerialTimeout 5000 //This is two seconds
 

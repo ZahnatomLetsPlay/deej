@@ -171,8 +171,8 @@ func (sio *SerialIO) Start() error {
 
 				vals := sio.deej.GetSessionMap().getVolumes()
 				var truefalse bool
-				valstring := sio.WriteValues(sio.namedLogger, vals)
-				truefalse, line = sio.WaitFor(sio.namedLogger, valstring+"\r")
+				sio.WriteValues(sio.namedLogger, vals)
+				truefalse, line = sio.WaitFor(sio.namedLogger, "")
 				sio.logger.Debug(line, "correct:", truefalse)
 				/*select {
 				case line := <-lineChannel:
@@ -282,18 +282,19 @@ func (sio *SerialIO) notifyConsumers(command string) {
 }
 
 // Writes values to the serial port with required command
-func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) string {
-	line := ""
-	for index, value := range values {
-		line += strconv.FormatFloat(float64(value*1023.0), 'f', 0, 64)
-		if index != len(values)-1 {
-			line += "|"
+func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) {
+	go func() {
+		line := ""
+		for index, value := range values {
+			line += strconv.FormatFloat(float64(value*1023.0), 'f', 0, 64)
+			if index != len(values)-1 {
+				line += "|"
+			}
 		}
-	}
-	sio.WriteStringLine(logger, "deej.core.receive")
-	sio.WriteStringLine(logger, line)
-	//sio.logger.Debug("Sending values:", line)
-	return line
+		sio.WriteStringLine(logger, "deej.core.receive")
+		sio.WriteStringLine(logger, line)
+		//sio.logger.Debug("Sending values:", line)
+	}()
 }
 
 // WriteStringLine retruns nothing
