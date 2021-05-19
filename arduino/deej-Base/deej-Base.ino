@@ -6,15 +6,15 @@
 #define MCUA328P 1
 
 //You must Hard Code in the number of Sliders in
-#define NUM_SLIDERS 6
+#define NUM_SLIDERS 1
 #define SERIALSPEED 115200
 #define FrequencyMS 10
 #define SerialTimeout 5000 //This is two seconds
 
-const uint8_t analogInputs[NUM_SLIDERS] = {A0, 19, 20, 21, 9, 8};
+const uint8_t analogInputs[NUM_SLIDERS] = {A0};
 
-uint16_t analogSliderValues[NUM_SLIDERS] = {10, 20, 30, 40, 50, 60};
-uint16_t volumeValues[NUM_SLIDERS] = {1,2,3,4,5,6};
+uint16_t analogSliderValues[NUM_SLIDERS];
+uint16_t volumeValues[NUM_SLIDERS];
 
 // Constend Send
 bool pushSliderValuesToPC = false;
@@ -69,15 +69,14 @@ void updateSliderValues() {
      analogSliderValues[i] = analogRead(analogInputs[i]);
   }
   //FOR TESTING:
-  memcpy(analogSliderValues, volumeValues, sizeof(analogSliderValues));
+  //memcpy(analogSliderValues, volumeValues, sizeof(analogSliderValues));
 }
 
 void sendSliderValues() {
   String sendvals = "";
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
     sendvals += analogSliderValues[i];
-
-    if (i < NUM_SLIDERS - 1) {
+       if (i < NUM_SLIDERS - 1) {
       sendvals += "|";
     }
   }
@@ -88,13 +87,6 @@ void sendSliderValues() {
   }*/
 
   Serial.println(sendvals);
-}
-
-void addCommand(String cmd) {
-  if (outboundCommands != "") {
-    outboundCommands += "|";
-  }
-  outboundCommands += cmd;
 }
 
 void printSliderValues() {

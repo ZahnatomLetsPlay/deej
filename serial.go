@@ -255,6 +255,9 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) {
 	go func() {
 		line := ""
 		for index, value := range values {
+			if index > sio.lastKnownNumSliders {
+				break
+			}
 			line += strconv.FormatFloat(float64(value*1023.0), 'f', 0, 64)
 			if index != len(values)-1 {
 				line += "|"
@@ -325,8 +328,7 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 		sio.logger.Error("Error reading line", "Error: ", err, "Line: ", line)
 		return false, ""
 	}
-
-	if len(line) > 1 {
+	if len(line) > 0 {
 
 		if line == cmdKey {
 			return true, line
@@ -334,6 +336,7 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 
 		return false, line
 	}
+	logger.Debugf(line)
 
 	return
 }
@@ -411,6 +414,7 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 	// but most lines will end with CRLF. it may also have garbage instead of
 	// deej-formatted values, so we must check for that! just ignore bad ones
 	if !expectedLinePattern.MatchString(line) {
+		logger.Warn("unexpected line pattern")
 		return
 	}
 
@@ -495,11 +499,11 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 
 	// deliver move events if there are any, towards all potential consumers
 	//not trigger move events for testing
-	/*if len(moveEvents) > 0 {
+	if len(moveEvents) > 0 {
 		for _, consumer := range sio.sliderMoveConsumers {
 			for _, moveEvent := range moveEvents {
 				consumer <- moveEvent
 			}
 		}
-	}*/
+	}
 }

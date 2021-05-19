@@ -7,7 +7,7 @@
 # windows only - you can use 'system' to control the "system sounds" volume
 # important: slider indexes start at 0, regardless of which analog pins you're using!
 slider_mapping:
-  0: master
+  0: VB-Audio VoiceMeeter AUX VAIO
   1: # Media 
     - firefox.exe                                    # FireFox
     - chrome.exe                                     # Chrome
