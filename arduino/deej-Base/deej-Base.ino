@@ -25,10 +25,6 @@ String outboundCommands = "";
 void setup() { 
   Serial.begin(SERIALSPEED);
   Serial.println("INITBEGIN");
-  pinMode(7, OUTPUT);
-  pinMode(6, OUTPUT);
-  pinMode(5, OUTPUT);
-  pinMode(4, OUTPUT);
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
     pinMode(analogInputs[i], INPUT);
   }
@@ -39,10 +35,7 @@ void setup() {
 
 void loop() {
   checkForCommand();
-  /*if(receivednewvalues){
-    checkForCommand();
-    receivednewvalues = false;
-  }*/
+  
   updateSliderValues();
 
   //Check for data chanel to be open
@@ -64,12 +57,29 @@ void reboot() {
 #endif
 }
 
+//bool up = true;
+
 void updateSliderValues() {
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
      analogSliderValues[i] = analogRead(analogInputs[i]);
   }
   //FOR TESTING:
   //memcpy(analogSliderValues, volumeValues, sizeof(analogSliderValues));
+  /*
+  if(up){
+    for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
+     analogSliderValues[i] += 1;
+    }
+  } else {
+    for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
+     analogSliderValues[i] -= 1;
+    }
+  }
+  if(analogSliderValues[0] == 0){
+    up = true;
+  } else if (analogSliderValues[0] == 1023){
+    up = false;
+  }*/
 }
 
 void sendSliderValues() {
@@ -80,11 +90,6 @@ void sendSliderValues() {
       sendvals += "|";
     }
   }
-  /*if (outboundCommands != "") {
-    Serial.print(":");
-    Serial.print(outboundCommands);
-    outboundCommands = "";
-  }*/
 
   Serial.println(sendvals);
 }
@@ -110,38 +115,18 @@ void printSliderValues() {
   }
 }
 
-bool led = false;
-bool led2 = false;
-bool led3 = false;
-bool led4 = false;
 void checkForCommand() {
   //Check if data is waiting
+  
   if (Serial.available() > 0) {
+    
     //Get start time of command
-      /*if(led){
-        digitalWrite(7, LOW);
-        led = false;
-        delay(FrequencyMS);
-      } else {
-        digitalWrite(7, HIGH);
-        led = true;
-        delay(FrequencyMS);
-      }*/
     unsigned long timeStart = millis();
 
     //Get data from Serial
     
     String input = Serial.readStringUntil('\r');  // Read chars from serial monitor
     Serial.readStringUntil('\n');
-    /*if(led2){
-      digitalWrite(6, LOW);
-        led2 = false;
-      delay(FrequencyMS);
-    } else {
-      digitalWrite(6, HIGH);
-        led2 = true;
-      delay(FrequencyMS);
-    }*/
     //If data takes to long
     if(millis()-timeStart >= SerialTimeout) {
       Serial.println("TIMEOUT");
@@ -178,15 +163,6 @@ void checkForCommand() {
           Serial.println("INVALID DATA: " + receive);
           return;
         }*/
-        /*if(led4){
-          digitalWrite(4, LOW);
-            led4 = false;
-          delay(FrequencyMS);
-        } else {
-          digitalWrite(4, HIGH);
-            led4 = true;
-          delay(FrequencyMS);
-        }*/
         String receive = Serial.readStringUntil('\r');
         Serial.readStringUntil('\n');
 
@@ -195,15 +171,6 @@ void checkForCommand() {
           return;
         }
         
-        /*if(led4){
-          digitalWrite(4, LOW);
-            led4 = false;
-          delay(FrequencyMS);
-        } else {
-          digitalWrite(4, HIGH);
-            led4 = true;
-          delay(FrequencyMS);
-        }*/
         Serial.println(receive);
         char split[receive.length()];
         receive.toCharArray(split, receive.length()+1);
@@ -213,7 +180,6 @@ void checkForCommand() {
           volumeValues[i] = value.toInt();
           piece = strtok(NULL, "|");
         }
-        /*receivednewvalues = true;*/
       }
       
       else if ( input.equalsIgnoreCase("deej.core.reboot") == true ) {
@@ -227,13 +193,4 @@ void checkForCommand() {
       }
     }
   }
-  /*if(led3){
-      digitalWrite(5, LOW);
-        led3 = false;
-      delay(FrequencyMS);
-    } else {
-      digitalWrite(5, HIGH);
-        led3 = true;
-      delay(FrequencyMS);
-    }*/
 }

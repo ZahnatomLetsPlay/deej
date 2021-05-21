@@ -119,6 +119,8 @@ func (sio *SerialIO) Initialize() error {
 	//sio.conn.Close()
 	reader := bufio.NewReader(sio.conn)
 	sio.reader = *reader
+	sio.logger.Debug(sio.WaitFor(sio.logger, "INITBEGIN"))
+	sio.logger.Debug(sio.WaitFor(sio.logger, "INITDONE"))
 	return nil
 }
 
@@ -133,18 +135,21 @@ func (sio *SerialIO) Start() error {
 		var oldline string
 
 		//for testing a max limit
-		i := 0
+		//i := 0
 		//for i != 1000 {
 		for sio.running {
 			select {
 			case <-sio.stopChannel:
 				sio.running = false
 			default:
-				millis := time.Now().UnixNano() / 1000000
+				//millis := time.Now().UnixNano() / 1000000
+
 				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
 
 				_, line = sio.WaitFor(sio.namedLogger, "")
-				sio.logger.Debug("Received:", line)
+				/*if sio.deej.Verbose() {
+					sio.logger.Debug("Received:", line)
+				}*/
 
 				if line != "" && line != oldline {
 					sio.handleLine(sio.namedLogger, line)
@@ -153,12 +158,17 @@ func (sio *SerialIO) Start() error {
 
 				vals := sio.deej.GetSessionMap().getVolumes()
 				sio.WriteValues(sio.namedLogger, vals)
-				_, line = sio.WaitFor(sio.namedLogger, "")
-				sio.logger.Debug("Sent:", line)
-				i++
+				_, _ = sio.WaitFor(sio.namedLogger, "")
+				/*if sio.deej.Verbose() {
+					sio.logger.Debug("Confirmed:", line)
+				}*/
 
-				millis = time.Now().UnixNano()/1000000 - millis
-				sio.logger.Debug(millis)
+				//i++
+
+				//millis = time.Now().UnixNano()/1000000 - millis
+				/*if sio.deej.Verbose() {
+					sio.logger.Debug("time between values: ", millis)
+				}*/
 			}
 		}
 		//sio.deej.signalStop()
@@ -252,21 +262,23 @@ func (sio *SerialIO) notifyConsumers(command string) {
 
 // Writes values to the serial port with required command
 func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) {
-	go func() {
-		line := ""
-		for index, value := range values {
-			if index > sio.lastKnownNumSliders {
-				break
-			}
-			line += strconv.FormatFloat(float64(value*1023.0), 'f', 0, 64)
-			if index != len(values)-1 {
-				line += "|"
-			}
+	//go func() {
+	line := ""
+	for index, value := range values {
+		if index > sio.lastKnownNumSliders-1 {
+			break
 		}
+		line += strconv.FormatFloat(float64(value*1023.0), 'f', 0, 64)
+		if index != len(values)-1 && sio.lastKnownNumSliders != 1 {
+			line += "|"
+		}
+	}
+	if line != "" {
 		sio.WriteStringLine(logger, "deej.core.receive")
 		sio.WriteStringLine(logger, line)
-		//sio.logger.Debug("Sending values:", line)
-	}()
+	}
+	//sio.logger.Debug("Sending values:", line)
+	//}()
 }
 
 // WriteStringLine retruns nothing
@@ -330,13 +342,12 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 	}
 	if len(line) > 0 {
 
-		if line == cmdKey {
+		if line == cmdKey+"\r" {
 			return true, line
 		}
 
 		return false, line
 	}
-	logger.Debugf(line)
 
 	return
 }
@@ -419,7 +430,7 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 	}
 
 	// trim the suffix
-	line = strings.TrimSuffix(line, "\r\n")
+	line = strings.TrimSuffix(line, "\r")
 
 	var splitValues []string
 
