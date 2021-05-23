@@ -6,12 +6,12 @@
 #define MCUA328P 1
 
 //You must Hard Code in the number of Sliders in
-#define NUM_SLIDERS 1
+#define NUM_SLIDERS 3
 #define SERIALSPEED 115200
 #define FrequencyMS 10
 #define SerialTimeout 5000 //This is two seconds
 
-const uint8_t analogInputs[NUM_SLIDERS] = {A0};
+const uint8_t analogInputs[NUM_SLIDERS] = {A0, A1, A2};
 
 uint16_t analogSliderValues[NUM_SLIDERS];
 uint16_t volumeValues[NUM_SLIDERS];

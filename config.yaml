@@ -7,17 +7,19 @@
 # windows only - you can use 'system' to control the "system sounds" volume
 # important: slider indexes start at 0, regardless of which analog pins you're using!
 slider_mapping:
-  0: VoiceMeeter Aux Input (VB-Audio VoiceMeeter AUX VAIO)
-  1: # Media 
+  0: master
+  1: deej.unmapped
+  2: # Media 
     - firefox.exe                                    # FireFox
     - chrome.exe                                     # Chrome
     - TwitchUI.exe                                   # Twitch
     - HuluLLC.HuluPlus_2.5.5.0_neutral__fphbd361v8ty # Hulu
     - 4DF9E0F8.Netflix_6.96.725.0_x64__mcm4njqhnhss8 # Netflix
-  2: # Music
-    - spotify.exe                       # Spotify
-    - Microsoft.ZuneMusic_10.20032.12611.0_x64__8wekyb3d8bbwe # Builtin Media Player
+  #2: # Music
+  #  - spotify.exe                       # Spotify
+  #  - Microsoft.ZuneMusic_10.20032.12611.0_x64__8wekyb3d8bbwe # Builtin Media Player
   3: 
+    - firefox.exe
     - discord.exe                       # Discord
     - ts3client_win64.exe               # TeamSpeak 3
   4: # Games
@@ -49,5 +51,5 @@ process_refresh_frequency: 5
 
 # adjust the amount of signal noise reduction depending on your hardware quality
 # supported values are "low" (excellent hardware), "default" (regular hardware) or "high" (bad, noisy hardware)
-noise_reduction: default
+noise_reduction: low
 
