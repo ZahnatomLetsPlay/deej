@@ -18,6 +18,8 @@ import (
 type CanonicalConfig struct {
 	SliderMapping *SliderMap
 
+	GroupNames []string
+
 	ConnectionInfo struct {
 		COMPort  string
 		BaudRate int
@@ -49,13 +51,14 @@ const (
 	configType = "yaml"
 
 	configKeySliderMapping       = "slider_mapping"
+	configKeyGroupNames          = "group_names"
 	configKeyInvertSliders       = "invert_sliders"
 	configKeyCOMPort             = "com_port"
 	configKeyBaudRate            = "baud_rate"
 	configKeyNoiseReductionLevel = "noise_reduction"
 
 	defaultCOMPort  = "COM4"
-	defaultBaudRate = 9600
+	defaultBaudRate = 115200
 )
 
 // has to be defined as a non-constant because we're using path.Join
@@ -86,6 +89,7 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 	userConfig.AddConfigPath(userConfigPath)
 
 	userConfig.SetDefault(configKeySliderMapping, map[string][]string{})
+	userConfig.SetDefault(configKeyGroupNames, []string{"MASTER"})
 	userConfig.SetDefault(configKeyInvertSliders, false)
 	userConfig.SetDefault(configKeyCOMPort, defaultCOMPort)
 	userConfig.SetDefault(configKeyBaudRate, defaultBaudRate)
@@ -222,6 +226,8 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 		cc.userConfig.GetStringMapStringSlice(configKeySliderMapping),
 		cc.internalConfig.GetStringMapStringSlice(configKeySliderMapping),
 	)
+
+	cc.GroupNames = cc.userConfig.GetStringSlice(configKeyGroupNames)
 
 	// get the rest of the config fields - viper saves us a lot of effort here
 	cc.ConnectionInfo.COMPort = cc.userConfig.GetString(configKeyCOMPort)

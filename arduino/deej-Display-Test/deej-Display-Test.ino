@@ -27,12 +27,13 @@ const uint8_t analogInputs[NUM_SLIDERS] = {A0, A1, A2};
 
 uint16_t analogSliderValues[NUM_SLIDERS];
 uint16_t volumeValues[NUM_SLIDERS];
+String groupNames[NUM_SLIDERS];
 
 // Constend Send
 bool pushSliderValuesToPC = false;
 bool receivednewvalues = false;
 
-String outboundCommands = "";
+String names;
 
 void setup() { 
   Serial.begin(SERIALSPEED);
@@ -43,15 +44,19 @@ void setup() {
     for(;;); // Don't proceed, loop forever
   }
   display.display();
-  delay(500);
-  display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(WHITE);
   
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
     pinMode(analogInputs[i], INPUT);
-  }
 
+    names += "X";
+    if(i<NUM_SLIDERS-1){
+      names += "|";
+    }
+    
+  }
+  
   Serial.println("INITDONE");
   //Serial.println("");
 }
@@ -60,8 +65,6 @@ void loop() {
   checkForCommand();
   
   updateSliderValues();
-
-  showOnDisplay();
 
   //Check for data chanel to be open
   if(pushSliderValuesToPC) {
@@ -83,13 +86,11 @@ void reboot() {
 }
 
 void showOnDisplay() {
-  display.clearDisplay();
-  display.setCursor(0,10);
   String dsp = "";
   for(uint8_t i = 0; i< NUM_SLIDERS; i++){
-    int vol = (int)(((float)volumeValues[i])/((float)1023)*((float)100));
+    float vol = ((float)volumeValues[i])/(1023.0)*100.0;
     if(vol != 0){
-      dsp += vol;
+      dsp += (int)vol;
     } else {
       dsp += "M";
     }
@@ -97,6 +98,9 @@ void showOnDisplay() {
       dsp += "|";
     }
   }
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println(names);
   display.println(dsp);
   display.display();
 }
@@ -159,46 +163,40 @@ void checkForCommand() {
       Serial.println("TIMEOUT");
       return;
     }
-
     // Check and match commands
     else {
       // Start Sending Slider Values
       if ( input.equalsIgnoreCase("deej.core.start") == true ) {
         pushSliderValuesToPC = true;
+        return;
       }
 
       // Stop Sending Slider Values
       else if ( input.equalsIgnoreCase("deej.core.stop") == true ) {
         pushSliderValuesToPC = false;
+        return;
       }
       
       // Send Single Slider Values
       else if ( input.equalsIgnoreCase("deej.core.values") == true ) {
         sendSliderValues();
+        return;
       }
 
       // Send Human Readable Slider Values 
       else if ( input.equalsIgnoreCase("deej.core.values.HR") == true ) {
         printSliderValues();
+        return;
       }
 
       // Receive Values
       else if(input.equalsIgnoreCase("deej.core.receive") == true){
-        /*if(Serial.available() > (4*NUM_SLIDERS+(NUM_SLIDERS-1))+4 || Serial.available() == 0 || Serial.available() < (1*NUM_SLIDERS+(NUM_SLIDERS-1))+4){
-          String receive = Serial.readStringUntil('\r');
-          Serial.readStringUntil('\n');
-          Serial.println("INVALID DATA: " + receive);
-          return;
-        }*/
         String receive = Serial.readStringUntil('\r');
         Serial.readStringUntil('\n');
-
         if(receive.length() > (4*NUM_SLIDERS+(NUM_SLIDERS-1)) || receive.length() < (1*NUM_SLIDERS+(NUM_SLIDERS-1))){
           Serial.println("INVALID DATA: " + receive);
           return;
         }
-        
-        Serial.println(receive);
         char split[receive.length()];
         receive.toCharArray(split, receive.length()+1);
         char* piece = strtok(split, "|");
@@ -207,10 +205,35 @@ void checkForCommand() {
           volumeValues[i] = value.toInt();
           piece = strtok(NULL, "|");
         }
+        showOnDisplay();
+        Serial.println(receive);
+        return;
+      }
+
+      // Receive Group Names
+      else if(input.equalsIgnoreCase("deej.core.receive.groupnames")){
+        names = "";
+        String receive = Serial.readStringUntil('\r');
+        Serial.readStringUntil('\n');
+        char split[receive.length()];
+        receive.toCharArray(split, receive.length()+1);
+        char* piece = strtok(split, "|");
+        for(int i = 0; piece != NULL; i++){
+          String groupname = String(piece);
+          groupNames[i] = groupname;
+          piece = strtok(NULL, "|");
+          names += groupname;
+          if(i<NUM_SLIDERS-1){
+            names += "|";
+          }
+        }
+        Serial.println(receive);
+        return;
       }
       
       else if ( input.equalsIgnoreCase("deej.core.reboot") == true ) {
         reboot();
+        return;
       }
 
       //Default Catch all

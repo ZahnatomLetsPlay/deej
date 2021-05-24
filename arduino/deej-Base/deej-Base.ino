@@ -15,12 +15,11 @@ const uint8_t analogInputs[NUM_SLIDERS] = {A0, A1, A2};
 
 uint16_t analogSliderValues[NUM_SLIDERS];
 uint16_t volumeValues[NUM_SLIDERS];
+String groupNames[NUM_SLIDERS];
 
 // Constend Send
 bool pushSliderValuesToPC = false;
 bool receivednewvalues = false;
-
-String outboundCommands = "";
 
 void setup() { 
   Serial.begin(SERIALSPEED);
@@ -65,21 +64,6 @@ void updateSliderValues() {
   }
   //FOR TESTING:
   //memcpy(analogSliderValues, volumeValues, sizeof(analogSliderValues));
-  /*
-  if(up){
-    for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
-     analogSliderValues[i] += 1;
-    }
-  } else {
-    for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
-     analogSliderValues[i] -= 1;
-    }
-  }
-  if(analogSliderValues[0] == 0){
-    up = true;
-  } else if (analogSliderValues[0] == 1023){
-    up = false;
-  }*/
 }
 
 void sendSliderValues() {
@@ -157,12 +141,6 @@ void checkForCommand() {
 
       // Receive Values
       else if(input.equalsIgnoreCase("deej.core.receive") == true){
-        /*if(Serial.available() > (4*NUM_SLIDERS+(NUM_SLIDERS-1))+4 || Serial.available() == 0 || Serial.available() < (1*NUM_SLIDERS+(NUM_SLIDERS-1))+4){
-          String receive = Serial.readStringUntil('\r');
-          Serial.readStringUntil('\n');
-          Serial.println("INVALID DATA: " + receive);
-          return;
-        }*/
         String receive = Serial.readStringUntil('\r');
         Serial.readStringUntil('\n');
 
@@ -171,7 +149,6 @@ void checkForCommand() {
           return;
         }
         
-        Serial.println(receive);
         char split[receive.length()];
         receive.toCharArray(split, receive.length()+1);
         char* piece = strtok(split, "|");
@@ -180,6 +157,22 @@ void checkForCommand() {
           volumeValues[i] = value.toInt();
           piece = strtok(NULL, "|");
         }
+        Serial.println(receive);
+      }
+
+      // Receive Group Names
+      else if(input.equalsIgnoreCase("deej.core.receive.groupnames")){
+        String receive = Serial.readStringUntil('\r');
+        Serial.readStringUntil('\n');
+        char split[receive.length()];
+        receive.toCharArray(split, receive.length()+1);
+        char* piece = strtok(split, "|");
+        for(int i = 0; piece != NULL; i++){
+          String groupname = String(piece);
+          groupNames[i] = groupname;
+          piece = strtok(NULL, "|");
+        }
+        Serial.println(receive);
       }
       
       else if ( input.equalsIgnoreCase("deej.core.reboot") == true ) {

@@ -21,16 +21,18 @@ type SerialIO struct {
 	comPort  string
 	baudRate uint
 
-	deej        *Deej
-	logger      *zap.SugaredLogger
-	namedLogger *zap.SugaredLogger
-	stopChannel chan bool
-	connected   bool
-	running     bool
-	connOptions serial.OpenOptions
-	conn        io.ReadWriteCloser
-	reader      bufio.Reader
+	deej                  *Deej
+	logger                *zap.SugaredLogger
+	namedLogger           *zap.SugaredLogger
+	stopChannel           chan bool
+	connected             bool
+	running               bool
+	configReloadedChannel chan bool
+	connOptions           serial.OpenOptions
+	conn                  io.ReadWriteCloser
+	reader                bufio.Reader
 
+	savenum                    int
 	lastKnownNumSliders        int
 	currentSliderPercentValues []float32
 
@@ -45,7 +47,7 @@ type SliderMoveEvent struct {
 	PercentValue float32
 }
 
-var expectedLinePattern = regexp.MustCompile(`^\d{1,4}(\|\d{1,4})*(:(([a-z]*\.?)*)(\|([a-z]*\.?)*)*)?\r?\n?$`)
+var expectedLinePattern = regexp.MustCompile(`^\d{1,4}(\|\d{1,4})*?\r?\n?$`)
 
 // NewSerialIO creates a SerialIO instance that uses the provided deej
 // instance's connection info to establish communications with the arduino chip
@@ -99,6 +101,9 @@ func (sio *SerialIO) Initialize() error {
 
 	sio.namedLogger = sio.logger.Named(strings.ToLower(sio.connOptions.PortName))
 
+	//Subscribes to config changes for group names
+	sio.configReloadedChannel = sio.deej.config.SubscribeToChanges()
+
 	sio.logger.Debugw("Attempting serial connection",
 		"comPort", sio.connOptions.PortName,
 		"baudRate", sio.connOptions.BaudRate,
@@ -117,61 +122,63 @@ func (sio *SerialIO) Initialize() error {
 	sio.namedLogger.Infow("Connected", "conn", sio.conn)
 	//sio.connected = true
 	//sio.conn.Close()
+
 	reader := bufio.NewReader(sio.conn)
 	sio.reader = *reader
 	sio.logger.Debug(sio.WaitFor(sio.logger, "INITBEGIN"))
 	sio.logger.Debug(sio.WaitFor(sio.logger, "INITDONE"))
+
+	//Get first line of values for slider count
+	sio.WriteStringLine(sio.logger, "deej.core.values")
+	_, line := sio.WaitFor(sio.logger, "values")
+	sio.handleLine(sio.logger, line)
+
+	for i := 0; i < 5; i++ {
+		sio.WriteStringLine(sio.logger, "deej.core.values")
+		sio.logger.Debug(sio.WaitFor(sio.logger, ""))
+		time.Sleep(1 * time.Second)
+	}
+
+	reader.Discard(reader.Size())
+
+	groupnames := sio.deej.config.GroupNames
+	sio.WriteGroupNames(sio.logger, groupnames)
+	sio.logger.Debug(groupnames)
+	sio.logger.Debug(sio.WaitFor(sio.logger, "confirm groupnames"))
+
+	sio.Flush(sio.logger)
+
 	return nil
 }
 
 // Start attempts to connect to our arduino chip
 func (sio *SerialIO) Start() error {
-	// read lines or await a stop
-	//lineChannel := sio.ReadLine(sio.namedLogger)
-
 	go func() {
 		sio.running = true
 		var line string
 		var oldline string
 
-		//for testing a max limit
-		//i := 0
-		//for i != 1000 {
 		for sio.running {
 			select {
 			case <-sio.stopChannel:
 				sio.running = false
 			default:
-				//millis := time.Now().UnixNano() / 1000000
 
 				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
 
-				_, line = sio.WaitFor(sio.namedLogger, "")
-				/*if sio.deej.Verbose() {
-					sio.logger.Debug("Received:", line)
-				}*/
+				_, line = sio.WaitFor(sio.namedLogger, "values")
 
-				if line != "" && line != oldline {
+				if line != "" && line != oldline && line != "\r" && line != "\r\n" {
 					sio.handleLine(sio.namedLogger, line)
 					oldline = line
 				}
 
 				vals := sio.deej.GetSessionMap().getVolumes()
-				sio.WriteValues(sio.namedLogger, vals)
-				_, _ = sio.WaitFor(sio.namedLogger, "")
-				/*if sio.deej.Verbose() {
-					sio.logger.Debug("Confirmed:", line)
-				}*/
-
-				//i++
-
-				//millis = time.Now().UnixNano()/1000000 - millis
-				/*if sio.deej.Verbose() {
-					sio.logger.Debug("time between values: ", millis)
-				}*/
+				if sio.WriteValues(sio.namedLogger, vals) {
+					_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
+				}
 			}
 		}
-		//sio.deej.signalStop()
 	}()
 
 	return nil
@@ -183,8 +190,7 @@ func (sio *SerialIO) ReadLine(logger *zap.SugaredLogger) chan string {
 
 	go func() {
 		for {
-			logger.Debugw("Reading line...")
-			line, err := bufio.NewReader(sio.conn).ReadString('\n')
+			line, err := sio.reader.ReadString('\n')
 			//logger.Debugw("Done reading /r")
 			//reader.ReadString('\n')
 			if err != nil {
@@ -195,9 +201,7 @@ func (sio *SerialIO) ReadLine(logger *zap.SugaredLogger) chan string {
 			}
 
 			// no reason to log here, just deliver the line to the channel
-			logger.Debugw("Read new line", "line", line)
 			ch <- line
-			logger.Debugw("Pushed line into channel")
 		}
 	}()
 
@@ -260,8 +264,28 @@ func (sio *SerialIO) notifyConsumers(command string) {
 	}
 }
 
+func (sio *SerialIO) WriteGroupNames(logger *zap.SugaredLogger, groupnames []string) bool {
+	line := ""
+	for index, name := range groupnames {
+		if index > sio.savenum-1 {
+			break
+		}
+		line += name
+		if index < sio.savenum-1 {
+			line += "|"
+		}
+	}
+	if line != "" {
+		sio.WriteStringLine(logger, "deej.core.receive.groupnames")
+		sio.WriteStringLine(logger, line)
+		return true
+	}
+	logger.Info("Sent nothing ", groupnames, " ", sio.savenum)
+	return false
+}
+
 // Writes values to the serial port with required command
-func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) {
+func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) bool {
 	//go func() {
 	line := ""
 	for index, value := range values {
@@ -269,14 +293,18 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) {
 			break
 		}
 		line += strconv.FormatFloat(float64(value*1023.0), 'f', 0, 64)
-		if index != len(values)-1 && sio.lastKnownNumSliders != 1 {
+		if index < sio.lastKnownNumSliders-1 {
 			line += "|"
 		}
 	}
 	if line != "" {
 		sio.WriteStringLine(logger, "deej.core.receive")
 		sio.WriteStringLine(logger, line)
+		return true
 	}
+
+	return false
+
 	//sio.logger.Debug("Sending values:", line)
 	//}()
 }
@@ -330,6 +358,8 @@ func (sio *SerialIO) WriteBytes(logger *zap.SugaredLogger, line []byte) {
 // Waits for the specified line befor continueing
 func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success bool, value string) {
 
+	//logger.Debug("Waiting for ", cmdKey)
+
 	line, err := sio.reader.ReadString('\r')
 
 	go func() {
@@ -359,7 +389,7 @@ loop:
 	for {
 		select {
 		case <-lineChannel:
-		case <-time.After(15 * time.Millisecond):
+		case <-time.After(100 * time.Millisecond):
 			break loop
 		}
 
@@ -383,6 +413,7 @@ func (sio *SerialIO) setupOnConfigReload() {
 				// whenever the config file is reloaded, and we don't want it to receive these move events while the map
 				// is still cleared. this is kind of ugly, but shouldn't cause any issues
 				go func() {
+					sio.savenum = sio.lastKnownNumSliders
 					<-time.After(stopDelay)
 					sio.lastKnownNumSliders = 0
 				}()
@@ -459,6 +490,7 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 	if numSliders != sio.lastKnownNumSliders {
 		logger.Infow("Detected sliders", "amount", numSliders)
 		sio.lastKnownNumSliders = numSliders
+		sio.savenum = numSliders
 		sio.currentSliderPercentValues = make([]float32, numSliders)
 
 		// reset everything to be an impossible value to force the slider move event later

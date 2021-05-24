@@ -38,6 +38,11 @@ slider_mapping:
     - DeadByDaylight-Win64-Shipping.exe # Dead By Daylight
   5:
 
+group_names:
+  - MASTER
+  - BLUB
+  - MEDIA
+
 # set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
 invert_sliders: false
 
