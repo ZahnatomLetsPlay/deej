@@ -422,7 +422,6 @@ func (sio *SerialIO) close(logger *zap.SugaredLogger) {
 func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 
 	line = strings.TrimSuffix(line, "\r")
-	logger.Debug(line)
 
 	// this function receives an unsanitized line which is guaranteed to end with LF,
 	// but most lines will end with CRLF. it may also have garbage instead of
