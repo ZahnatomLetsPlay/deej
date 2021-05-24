@@ -1,6 +1,7 @@
 # deej
 
 deej is an **open-source hardware volume mixer** for Windows and Linux PCs. It lets you use real-life sliders (like a DJ!) to **seamlessly control the volumes of different apps** (such as your music player, the game you're playing and your voice chat session) without having to stop what you're doing. This fork is designed to work with motorized faders once done.
+This fork is built using https://github.com/jax-b/deej .
 
 **Join the [deej Discord server](https://discord.gg/nf88NJu) if you need help or have any questions!**
 
@@ -18,25 +19,30 @@ deej consists of a [lightweight desktop client](#features) written in Go, and an
 
 ## Table of contents
 
-- [Features](#features)
-- [How it works](#how-it-works)
-  - [Hardware](#hardware)
-    - [Schematic](#schematic)
-  - [Software](#software)
-- [Slider mapping (configuration)](#slider-mapping-configuration)
-- [Build your own!](#build-your-own)
-  - [FAQ](#faq)
-  - [Build video](#build-video)
-  - [Bill of Materials](#bill-of-materials)
-  - [Thingiverse collection](#thingiverse-collection)
-  - [Build procedure](#build-procedure)
-- [How to run](#how-to-run)
-  - [Requirements](#requirements)
-  - [Download and installation](#download-and-installation)
-  - [Building from source](#building-from-source)
-- [Community](#community)
-- [Long-ish term roadmap](#long-ish-term-roadmap)
-- [License](#license)
+- [deej](#deej)
+  - [Table of contents](#table-of-contents)
+  - [Features](#features)
+  - [How it works](#how-it-works)
+    - [Hardware](#hardware)
+      - [Schematic](#schematic)
+    - [Software](#software)
+  - [Slider mapping (configuration)](#slider-mapping-configuration)
+  - [Build your own!](#build-your-own)
+    - [FAQ](#faq)
+    - [Build video](#build-video)
+    - [Bill of Materials](#bill-of-materials)
+    - [Thingiverse collection](#thingiverse-collection)
+    - [Build procedure](#build-procedure)
+  - [How to run](#how-to-run)
+    - [Requirements](#requirements)
+      - [Windows](#windows)
+      - [Linux](#linux)
+    - [Download and installation](#download-and-installation)
+    - [Building from source](#building-from-source)
+  - [Community](#community)
+    - [Donations](#donations)
+  - [Long-ish term roadmap](#long-ish-term-roadmap)
+  - [License](#license)
 
 ## Features
 
