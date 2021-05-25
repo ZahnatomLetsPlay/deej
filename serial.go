@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -35,6 +36,7 @@ type SerialIO struct {
 	savenum                    int
 	lastKnownNumSliders        int
 	currentSliderPercentValues []float32
+	groupnames                 []string
 
 	sliderMoveConsumers []chan SliderMoveEvent
 
@@ -117,36 +119,24 @@ func (sio *SerialIO) Initialize() error {
 		sio.namedLogger.Warnw("Failed to open serial connection", "error", err)
 		return fmt.Errorf("open serial connection: %w", err)
 	}
-	//sio.WriteStringLine(sio.namedLogger, "deej.core.start")
-
+	sio.connected = true
 	sio.namedLogger.Infow("Connected", "conn", sio.conn)
-	//sio.connected = true
-	//sio.conn.Close()
 
 	reader := bufio.NewReader(sio.conn)
 	sio.reader = *reader
-	sio.logger.Debug(sio.WaitFor(sio.logger, "INITBEGIN"))
-	sio.logger.Debug(sio.WaitFor(sio.logger, "INITDONE"))
+
+	sio.logger.Debug(sio.WaitFor(sio.namedLogger, "INITBEGIN"))
+	sio.logger.Debug(sio.WaitFor(sio.namedLogger, "INITDONE"))
 
 	//Get first line of values for slider count
-	sio.WriteStringLine(sio.logger, "deej.core.values")
-	_, line := sio.WaitFor(sio.logger, "values")
-	sio.handleLine(sio.logger, line)
+	sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+	_, line := sio.WaitFor(sio.namedLogger, "values")
+	sio.handleLine(sio.namedLogger, line)
 
 	for i := 0; i < 5; i++ {
-		sio.WriteStringLine(sio.logger, "deej.core.values")
-		sio.logger.Debug(sio.WaitFor(sio.logger, ""))
-		time.Sleep(1 * time.Second)
+		sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+		sio.WaitFor(sio.namedLogger, "")
 	}
-
-	reader.Discard(reader.Size())
-
-	groupnames := sio.deej.config.GroupNames
-	sio.WriteGroupNames(sio.logger, groupnames)
-	sio.logger.Debug(groupnames)
-	sio.logger.Debug(sio.WaitFor(sio.logger, "confirm groupnames"))
-
-	sio.Flush(sio.logger)
 
 	return nil
 }
@@ -157,6 +147,15 @@ func (sio *SerialIO) Start() error {
 		sio.running = true
 		var line string
 		var oldline string
+
+		//send group names
+		sio.groupnames = sio.deej.config.GroupNames
+		sio.WriteGroupNames(sio.namedLogger, sio.groupnames)
+		sio.logger.Debug(sio.WaitFor(sio.namedLogger, "confirm groupnames"))
+		sio.Flush(sio.namedLogger)
+
+		//Write something to serial to sync
+		sio.WriteStringLine(sio.namedLogger, "")
 
 		for sio.running {
 			select {
@@ -230,7 +229,7 @@ func (sio *SerialIO) Shutdown() {
 		}
 
 		sio.logger.Debug("Rebooting Arduino")
-		sio.WriteStringLine(sio.logger, "deej.core.reboot")
+		sio.WriteStringLine(sio.namedLogger, "deej.core.reboot")
 
 		sio.close(sio.namedLogger)
 		sio.logger.Debug("Serial Shutdown")
@@ -359,17 +358,19 @@ func (sio *SerialIO) WriteBytes(logger *zap.SugaredLogger, line []byte) {
 func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success bool, value string) {
 
 	//logger.Debug("Waiting for ", cmdKey)
+	reader := sio.reader
 
-	line, err := sio.reader.ReadString('\r')
+	line, err := reader.ReadString('\r')
 
 	go func() {
-		sio.reader.ReadString('\n')
+		reader.ReadString('\n')
 	}()
 
 	if err != nil {
 		sio.logger.Error("Error reading line", "Error: ", err, "Line: ", line)
 		return false, ""
 	}
+
 	if len(line) > 0 {
 
 		if line == cmdKey+"\r" {
@@ -379,7 +380,7 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 		return false, line
 	}
 
-	return
+	return false, ""
 }
 
 // Flush clears out the buffers of the serial port
@@ -420,7 +421,8 @@ func (sio *SerialIO) setupOnConfigReload() {
 
 				// if connection params have changed, attempt to stop and start the connection
 				if sio.deej.config.ConnectionInfo.COMPort != sio.connOptions.PortName ||
-					uint(sio.deej.config.ConnectionInfo.BaudRate) != sio.connOptions.BaudRate {
+					uint(sio.deej.config.ConnectionInfo.BaudRate) != sio.connOptions.BaudRate ||
+					!reflect.DeepEqual(sio.deej.config.GroupNames, sio.groupnames) {
 
 					sio.logger.Info("Detected change in connection parameters, attempting to renew connection")
 					sio.Shutdown()
@@ -428,10 +430,14 @@ func (sio *SerialIO) setupOnConfigReload() {
 					// let the connection close
 					<-time.After(stopDelay)
 
-					if err := sio.Start(); err != nil {
-						sio.logger.Warnw("Failed to renew connection after parameter change", "error", err)
+					if inerr := sio.Initialize(); inerr != nil {
+						sio.logger.Warnw("Failed to initialize connection after parameter change", "error", inerr)
 					} else {
-						sio.logger.Debug("Renewed connection successfully")
+						if err := sio.Start(); err != nil {
+							sio.logger.Warnw("Failed to renew connection after parameter change", "error", err)
+						} else {
+							sio.logger.Debug("Renewed connection successfully")
+						}
 					}
 				}
 			}

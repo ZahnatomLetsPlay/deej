@@ -99,6 +99,22 @@ void printSliderValues() {
   }
 }
 
+String getValue(String data, char separator, int index) {
+  int found = 0;
+  int strIndex[] = {0, -1};
+  int maxIndex = data.length()-1;
+
+  for(int i=0; i<=maxIndex && found<=index; i++){
+    if(data.charAt(i)==separator || i==maxIndex){
+        found++;
+        strIndex[0] = strIndex[1]+1;
+        strIndex[1] = (i == maxIndex) ? i+1 : i;
+    }
+  }
+
+  return found>index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
+
 void checkForCommand() {
   //Check if data is waiting
   
@@ -143,36 +159,30 @@ void checkForCommand() {
       else if(input.equalsIgnoreCase("deej.core.receive") == true){
         String receive = Serial.readStringUntil('\r');
         Serial.readStringUntil('\n');
-
         if(receive.length() > (4*NUM_SLIDERS+(NUM_SLIDERS-1)) || receive.length() < (1*NUM_SLIDERS+(NUM_SLIDERS-1))){
           Serial.println("INVALID DATA: " + receive);
           return;
         }
-        
-        char split[receive.length()];
-        receive.toCharArray(split, receive.length()+1);
-        char* piece = strtok(split, "|");
-        for(int i = 0; piece!= NULL; i++){
-          String value = String(piece);
-          volumeValues[i] = value.toInt();
-          piece = strtok(NULL, "|");
+        String str = getValue(receive, '|', 0);
+        for(int i = 1; str != ""; i++){
+          volumeValues[i-1] = str.toInt();
+          str = getValue(receive, '|', i);
         }
         Serial.println(receive);
+        return;
       }
 
       // Receive Group Names
       else if(input.equalsIgnoreCase("deej.core.receive.groupnames")){
         String receive = Serial.readStringUntil('\r');
         Serial.readStringUntil('\n');
-        char split[receive.length()];
-        receive.toCharArray(split, receive.length()+1);
-        char* piece = strtok(split, "|");
-        for(int i = 0; piece != NULL; i++){
-          String groupname = String(piece);
-          groupNames[i] = groupname;
-          piece = strtok(NULL, "|");
+        String str = getValue(receive, '|', 0);
+        for(int i = 1; i <= NUM_SLIDERS; i++){
+          groupNames[i-1] = str;
+          str = getValue(receive, '|', i);
         }
         Serial.println(receive);
+        return;
       }
       
       else if ( input.equalsIgnoreCase("deej.core.reboot") == true ) {
