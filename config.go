@@ -203,6 +203,7 @@ func (cc *CanonicalConfig) WatchConfigFileChanges() {
 					cc.onConfigReloaded()
 				}
 
+				cc.logger.Info("Done signaling config update consumers")
 				// don't forget to update the time
 				lastAttemptedReload = now
 			}
@@ -252,8 +253,6 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 }
 
 func (cc *CanonicalConfig) onConfigReloaded() {
-	cc.logger.Debug("Notifying consumers about configuration reload")
-
 	for _, consumer := range cc.reloadConsumers {
 		consumer <- true
 	}

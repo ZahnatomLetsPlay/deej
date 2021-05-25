@@ -104,7 +104,6 @@ func (sio *SerialIO) Initialize() error {
 	sio.namedLogger = sio.logger.Named(strings.ToLower(sio.connOptions.PortName))
 
 	//Subscribes to config changes for group names
-	sio.configReloadedChannel = sio.deej.config.SubscribeToChanges()
 
 	sio.logger.Debugw("Attempting serial connection",
 		"comPort", sio.connOptions.PortName,
@@ -407,7 +406,7 @@ func (sio *SerialIO) setupOnConfigReload() {
 		for {
 			select {
 			case <-configReloadedChannel:
-
+				sio.logger.Debug("Detected config reload ", sio.configReloadedChannel)
 				// make any config reload unset our slider number to ensure process volumes are being re-set
 				// (the next read line will emit SliderMoveEvent instances for all sliders)\
 				// this needs to happen after a small delay, because the session map will also re-acquire sessions

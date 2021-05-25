@@ -140,7 +140,7 @@ func (m *SessionMap) setupOnConfigReload() {
 		for {
 			select {
 			case <-configReloadedChannel:
-				m.logger.Info("Detected config reload, attempting to re-acquire all audio sessions")
+				m.logger.Info("Detected config reload, attempting to re-acquire all audio sessions ", configReloadedChannel)
 				m.refreshSessions(false)
 			}
 		}
