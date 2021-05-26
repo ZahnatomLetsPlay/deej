@@ -3,6 +3,7 @@ package deej
 import (
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,6 +35,8 @@ type CanonicalConfig struct {
 	stopWatcherChannel chan bool
 
 	reloadConsumers []chan bool
+
+	lastNotify time.Time
 
 	userConfig     *viper.Viper
 	internalConfig *viper.Viper
@@ -80,6 +83,7 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 		notifier:           notifier,
 		reloadConsumers:    []chan bool{},
 		stopWatcherChannel: make(chan bool),
+		lastNotify:         time.Now(),
 	}
 
 	// distinguish between the user-provided config (config.yaml) and the internal config (logs/preferences.yaml)
@@ -89,7 +93,7 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 	userConfig.AddConfigPath(userConfigPath)
 
 	userConfig.SetDefault(configKeySliderMapping, map[string][]string{})
-	userConfig.SetDefault(configKeyGroupNames, []string{"MASTER"})
+	userConfig.SetDefault(configKeyGroupNames, map[string][]string{})
 	userConfig.SetDefault(configKeyInvertSliders, false)
 	userConfig.SetDefault(configKeyCOMPort, defaultCOMPort)
 	userConfig.SetDefault(configKeyBaudRate, defaultBaudRate)
@@ -171,6 +175,7 @@ func (cc *CanonicalConfig) WatchConfigFileChanges() {
 
 	const (
 		minTimeBetweenReloadAttempts = time.Millisecond * 500
+		minTimeBetweenNotifications  = time.Millisecond * 6000
 		delayBetweenEventAndReload   = time.Millisecond * 50
 	)
 
@@ -198,7 +203,10 @@ func (cc *CanonicalConfig) WatchConfigFileChanges() {
 					cc.logger.Warnw("Failed to reload config file", "error", err)
 				} else {
 					cc.logger.Info("Reloaded config successfully")
-					cc.notifier.Notify("Configuration reloaded!", "Your changes have been applied.")
+					if cc.lastNotify.Add(minTimeBetweenNotifications).Before(now) {
+						cc.notifier.Notify("Configuration reloaded!", "Your changes have been applied.")
+						cc.lastNotify = time.Now()
+					}
 
 					cc.onConfigReloaded()
 				}
@@ -229,7 +237,12 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 		cc.internalConfig.GetStringMapStringSlice(configKeySliderMapping),
 	)
 
-	cc.GroupNames = cc.userConfig.GetStringSlice(configKeyGroupNames)
+	groupnamesmap := cc.userConfig.GetStringMapStringSlice(configKeyGroupNames)
+	cc.GroupNames = make([]string, len(groupnamesmap))
+	for index, val := range groupnamesmap {
+		idx, _ := strconv.Atoi(index)
+		cc.GroupNames[idx] = val[0]
+	}
 
 	// get the rest of the config fields - viper saves us a lot of effort here
 	cc.ConnectionInfo.COMPort = cc.userConfig.GetString(configKeyCOMPort)

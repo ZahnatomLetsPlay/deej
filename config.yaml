@@ -40,9 +40,9 @@ slider_mapping:
 
 # this can be used to display names above sliders with displays
 group_names:
-  - MASTER
-  - UNMAPPED
-  - MEDIA
+  0: MSTR
+  1: GAMES
+  2: MEDIA
 
 # set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
 invert_sliders: false
