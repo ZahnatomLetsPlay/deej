@@ -38,6 +38,7 @@ slider_mapping:
     - DeadByDaylight-Win64-Shipping.exe # Dead By Daylight
   5:
 
+# this can be used to display names above sliders with displays
 group_names:
   - MASTER
   - UNMAPPED
