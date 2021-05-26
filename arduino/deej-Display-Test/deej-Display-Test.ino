@@ -94,7 +94,7 @@ void showOnDisplay() {
   for(uint8_t i = 0; i< NUM_SLIDERS; i++){
     float vol = ((float)volumeValues[i])/(1023.0)*100.0;
     if(vol != 0){
-      dsp += (int)vol;
+      dsp += round(vol);
     } else {
       dsp += "M";
     }

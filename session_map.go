@@ -24,6 +24,8 @@ type SessionMap struct {
 
 	lastSessionRefresh time.Time
 
+	refreshing bool
+
 	returnSessionConsumers []chan bool
 	unmappedSessions       []Session
 }
@@ -293,7 +295,9 @@ func (m *SessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 	// first of all, ensure our session map isn't moldy
 	if m.lastSessionRefresh.Add(maxTimeBetweenSessionRefreshes).Before(time.Now()) {
 		m.logger.Debug("Stale session map detected on slider move, refreshing")
+		m.refreshing = true
 		m.refreshSessions(true)
+		m.refreshing = false
 	}
 
 	// get the targets mapped to this slider from the config

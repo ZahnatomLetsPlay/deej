@@ -172,8 +172,10 @@ func (sio *SerialIO) Start() error {
 				}
 
 				vals := sio.deej.GetSessionMap().getVolumes()
-				if sio.WriteValues(sio.namedLogger, vals) {
-					_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
+				if !sio.deej.sessions.refreshing {
+					if sio.WriteValues(sio.namedLogger, vals) {
+						_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
+					}
 				}
 			}
 		}
@@ -244,22 +246,6 @@ func (sio *SerialIO) SubscribeToSliderMoveEvents() chan SliderMoveEvent {
 	sio.sliderMoveConsumers = append(sio.sliderMoveConsumers, ch)
 
 	return ch
-}
-
-// SubscribeToCommands allows external components to receive updates when a command is recived from the arduino
-func (sio *SerialIO) SubscribeToCommands() chan string {
-	c := make(chan string)
-	sio.returnCommandConsumers = append(sio.returnCommandConsumers, c)
-
-	return c
-}
-
-func (sio *SerialIO) notifyConsumers(command string) {
-	sio.logger.Info("Command Recived, Notifying Consumers")
-
-	for _, consumer := range sio.returnCommandConsumers {
-		consumer <- command
-	}
 }
 
 func (sio *SerialIO) WriteGroupNames(logger *zap.SugaredLogger, groupnames []string) bool {
@@ -469,25 +455,8 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 
 	// trim the suffix
 
-	var splitValues []string
-
-	// if there are subcommand seperate them out
-	if strings.Contains(line, ":") {
-		splitLine := strings.Split(line, ":")
-		// split on pipe (|), this gives a slice of numerical strings between "0" and "1023"
-		splitValues = strings.Split(splitLine[0], "|")
-
-		// split on pipe (|)
-		splitCommands := strings.Split(splitLine[1], "|")
-
-		for _, value := range splitCommands {
-			sio.notifyConsumers(value)
-		}
-
-	} else {
-		// split on pipe (|), this gives a slice of numerical strings between "0" and "1023"
-		splitValues = strings.Split(line, "|")
-	}
+	// split on pipe (|), this gives a slice of numerical strings between "0" and "1023"
+	splitValues := strings.Split(line, "|")
 
 	numSliders := len(splitValues)
 
