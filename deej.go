@@ -20,11 +20,12 @@ const (
 
 // Deej is the main entity managing access to all sub-components
 type Deej struct {
-	logger   *zap.SugaredLogger
-	Notifier Notifier
-	config   *CanonicalConfig
-	serial   *SerialIO
-	sessions *SessionMap
+	logger        *zap.SugaredLogger
+	Notifier      Notifier
+	config        *CanonicalConfig
+	serial        *SerialIO
+	sessions      *SessionMap
+	sessionFinder SessionFinder
 
 	stopChannel chan bool
 	version     string
@@ -63,13 +64,13 @@ func NewDeej(logger *zap.SugaredLogger, verbose bool) (*Deej, error) {
 
 	d.serial = serial
 
-	sessionFinder, err := newSessionFinder(logger)
+	d.sessionFinder, err = newSessionFinder(logger)
 	if err != nil {
 		logger.Errorw("Failed to create SessionFinder", "error", err)
 		return nil, fmt.Errorf("create new SessionFinder: %w", err)
 	}
 
-	sessions, err := newSessionMap(d, logger, sessionFinder)
+	sessions, err := newSessionMap(d, logger, d.sessionFinder)
 	if err != nil {
 		logger.Errorw("Failed to create sessionMap", "error", err)
 		return nil, fmt.Errorf("create new sessionMap: %w", err)

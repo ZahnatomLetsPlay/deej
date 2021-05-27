@@ -145,11 +145,9 @@ func (sio *SerialIO) Start() error {
 	go func() {
 		sio.running = true
 		var line string
-		var oldline string
 
 		//send group names
-		sio.groupnames = sio.deej.config.GroupNames
-		sio.WriteGroupNames(sio.namedLogger, sio.groupnames)
+		sio.WriteGroupNames(sio.namedLogger)
 		sio.logger.Debug(sio.WaitFor(sio.namedLogger, "confirm groupnames"))
 		sio.Flush(sio.namedLogger)
 
@@ -166,14 +164,12 @@ func (sio *SerialIO) Start() error {
 
 				_, line = sio.WaitFor(sio.namedLogger, "values")
 
-				if line != "" && line != oldline && line != "\r" && line != "\r\n" {
-					sio.handleLine(sio.namedLogger, line)
-					oldline = line
-				}
+				sio.handleLine(sio.namedLogger, line)
 
 				vals := sio.deej.GetSessionMap().getVolumes()
 				if !sio.deej.sessions.refreshing {
 					if sio.WriteValues(sio.namedLogger, vals) {
+						//sio.logger.Debug(vals)
 						_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
 					}
 				}
@@ -248,7 +244,8 @@ func (sio *SerialIO) SubscribeToSliderMoveEvents() chan SliderMoveEvent {
 	return ch
 }
 
-func (sio *SerialIO) WriteGroupNames(logger *zap.SugaredLogger, groupnames []string) bool {
+func (sio *SerialIO) WriteGroupNames(logger *zap.SugaredLogger) bool {
+	groupnames := sio.deej.config.GroupNames
 	line := ""
 	for index, name := range groupnames {
 		if index > sio.savenum-1 {
@@ -300,8 +297,7 @@ func (sio *SerialIO) WriteStringLine(logger *zap.SugaredLogger, line string) {
 
 	if err != nil {
 
-		// we probably don't need to log this, it'll happen once and the read loop will stop
-		// logger.Warnw("Failed to read line from serial", "error", err, "line", line)
+		logger.Warnw("Failed to write line to serial", "error", err, "line", line)
 		return
 	}
 }
@@ -385,6 +381,7 @@ loop:
 
 func (sio *SerialIO) setupOnConfigReload() {
 	configReloadedChannel := sio.deej.config.SubscribeToChanges()
+	//sessionReloadChannel := sio.deej.sessions.SubscribeToSessionReload()
 
 	const stopDelay = 50 * time.Millisecond
 
