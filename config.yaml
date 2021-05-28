@@ -9,6 +9,8 @@
 slider_mapping:
   0: master
   1: deej.unmapped
+  #1: mic
+  #2: deej.unmapped
   2: # Media 
     - msedge.exe
     - firefox.exe                                    # FireFox
@@ -41,8 +43,8 @@ slider_mapping:
 # this can be used to display names above sliders with displays
 group_names:
   0: MSTR
-  1: GAMES
-  2: MEDIA
+  1: MIC
+  2: UNMAPPED
 
 # set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
 invert_sliders: false

@@ -383,7 +383,7 @@ func (sio *SerialIO) setupOnConfigReload() {
 	configReloadedChannel := sio.deej.config.SubscribeToChanges()
 	//sessionReloadChannel := sio.deej.sessions.SubscribeToSessionReload()
 
-	const stopDelay = 50 * time.Millisecond
+	const stopDelay = 500 * time.Millisecond
 
 	go func() {
 		for {

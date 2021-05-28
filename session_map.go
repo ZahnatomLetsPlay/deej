@@ -94,6 +94,7 @@ func (m *SessionMap) initialize() error {
 
 	m.setupOnConfigReload()
 	m.setupOnSliderMove()
+	m.setupOnStaleMaster()
 
 	return nil
 }
@@ -133,6 +134,18 @@ func (m *SessionMap) getAndAddSessions() error {
 	m.logger.Infow("Got all audio sessions successfully", "SessionMap", m)
 
 	return nil
+}
+
+func (m *SessionMap) setupOnStaleMaster() {
+	go func() {
+		for {
+			if m.deej.staleMaster {
+				m.logger.Info("Master stale, refreshing sessions")
+				m.refreshSessions(false)
+				m.deej.staleMaster = false
+			}
+		}
+	}()
 }
 
 func (m *SessionMap) setupOnConfigReload() {
@@ -229,10 +242,10 @@ func (m *SessionMap) sessionMapped(session Session) bool {
 func (m *SessionMap) getVolumes() []float32 {
 	num_sliders := m.deej.config.SliderMapping.Size()
 	vols := make([]float32, num_sliders)
-	if m.lastSessionRefresh.Add(maxTimeBetweenSessionRefreshes).Before((time.Now())) {
+	/*if m.lastSessionRefresh.Add(maxTimeBetweenSessionRefreshes).Before((time.Now())) {
 		m.logger.Debug("Stale session map detected on volume request, refreshing")
 		m.refreshSessions(true)
-	}
+	}*/
 	//m.refreshSessions(false)
 	for i := 0; i < num_sliders; i++ {
 		targets, ok := m.deej.config.SliderMapping.Get(i)

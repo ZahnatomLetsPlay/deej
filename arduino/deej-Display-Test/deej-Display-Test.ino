@@ -38,6 +38,11 @@ bool receivednewvalues = false;
 String names;
 
 void setup() { 
+
+  if(!Serial){
+    Serial.end();
+  }
+  
   Serial.begin(SERIALSPEED);
   Serial.println("INITBEGIN");
   

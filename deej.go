@@ -30,6 +30,8 @@ type Deej struct {
 	stopChannel chan bool
 	version     string
 	verbose     bool
+
+	staleMaster bool
 }
 
 // NewDeej creates a Deej instance
@@ -64,7 +66,7 @@ func NewDeej(logger *zap.SugaredLogger, verbose bool) (*Deej, error) {
 
 	d.serial = serial
 
-	d.sessionFinder, err = newSessionFinder(logger)
+	d.sessionFinder, err = newSessionFinder(logger, d)
 	if err != nil {
 		logger.Errorw("Failed to create SessionFinder", "error", err)
 		return nil, fmt.Errorf("create new SessionFinder: %w", err)

@@ -24,6 +24,8 @@ type wcaSessionFinder struct {
 	mmNotificationClient    *wca.IMMNotificationClient
 	lastDefaultDeviceChange time.Time
 
+	deej *Deej
+
 	// our master input and output sessions
 	masterOut *MasterSession
 	masterIn  *MasterSession
@@ -42,11 +44,12 @@ const (
 	deviceSessionFormat = "device.%s"
 )
 
-func newSessionFinder(logger *zap.SugaredLogger) (SessionFinder, error) {
+func newSessionFinder(logger *zap.SugaredLogger, deej *Deej) (SessionFinder, error) {
 	sf := &wcaSessionFinder{
 		logger:        logger.Named("session_finder"),
 		sessionLogger: logger.Named("sessions"),
 		eventCtx:      ole.NewGUID(myteriousGUID),
+		deej:          deej,
 	}
 
 	sf.logger.Debug("Created WCA session finder instance")
@@ -528,10 +531,12 @@ func (sf *wcaSessionFinder) defaultDeviceChangedCallback(
 	sf.logger.Debug("Default audio device changed, marking master sessions as stale")
 	if sf.masterOut != nil {
 		sf.masterOut.markAsStale()
+		sf.deej.staleMaster = true
 	}
 
 	if sf.masterIn != nil {
 		sf.masterIn.markAsStale()
+		sf.deej.staleMaster = true
 	}
 
 	return
