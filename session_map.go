@@ -141,7 +141,14 @@ func (m *SessionMap) setupOnStaleMaster() {
 		for {
 			if m.deej.staleMaster {
 				m.logger.Info("Master stale, refreshing sessions")
-				m.refreshSessions(false)
+				refresh := m.refreshSessions(false)
+				for !refresh {
+					if m.deej.verbose {
+						m.logger.Info("Refresh cooldown not done, retrying...")
+					}
+					refresh = m.refreshSessions(false)
+					time.Sleep(1 * time.Second)
+				}
 				m.deej.staleMaster = false
 			}
 		}
@@ -175,11 +182,11 @@ func (m *SessionMap) setupOnSliderMove() {
 	}()
 }
 
-func (m *SessionMap) refreshSessions(force bool) {
+func (m *SessionMap) refreshSessions(force bool) bool {
 	m.refreshing = true
 	// make sure enough time passed since the last refresh, unless force is true in which case always clear
 	if !force && m.lastSessionRefresh.Add(minTimeBetweenSessionRefreshes).After(time.Now()) {
-		return
+		return false
 	}
 
 	// clear and release sessions first
@@ -198,6 +205,7 @@ func (m *SessionMap) refreshSessions(force bool) {
 		}
 	}()
 	m.refreshing = false
+	return true
 }
 
 // returns true if a session is not currently mapped to any slider, false otherwise
