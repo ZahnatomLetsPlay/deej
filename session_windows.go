@@ -113,9 +113,13 @@ func newMasterSession(
 // GetVolume returns the volume of the session
 func (s *WcaSession) GetVolume() float32 {
 	var level float32
+	var mute bool
 
 	if err := s.volume.GetMasterVolume(&level); err != nil {
 		s.logger.Warnw("Failed to get session volume", "error", err)
+	}
+	if err := s.volume.GetMute(&mute); err != nil {
+		s.logger.Warnw("Failed to get mute state", "error", err)
 	}
 
 	return level

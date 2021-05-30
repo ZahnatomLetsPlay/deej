@@ -32,9 +32,14 @@ const uint8_t analogInputs[NUM_SLIDERS] = {A10, A11};//, A7, A8, A9};
 uint16_t analogSliderValues[NUM_SLIDERS];
 uint16_t volumeValues[NUM_SLIDERS];
 String groupNames[NUM_SLIDERS];
+uint8_t motorMoved[NUM_MOTORS];
+//bool firstReceive = true;
 
 //this is what motor has what analog input
 const uint8_t motorMap[NUM_MOTORS] = {A11, A10};
+const uint8_t touchInputs[NUM_MOTORS] = {30,31};
+unsigned long touchTimes[NUM_MOTORS];
+bool touch[NUM_MOTORS];
 AF_DCMotor motors[NUM_MOTORS] = {AF_DCMotor(2), AF_DCMotor(1)};
 
 // Constend Send
@@ -64,8 +69,10 @@ void setup() {
     analogSliderValues[i] = 0;
     
   }
+  for(int i = 0; i<NUM_MOTORS; i++){
+    touch[i] = true;
+  }
   updateSliderValues();
-    delay(100);
   
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { 
     //Serial.println(F("SSD1306 allocation failed"));
@@ -76,8 +83,11 @@ void setup() {
   display.display();
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  
-  for(int i = 2; i<NUM_MOTORS; i++){
+  delay(1000);
+  showOnDisplay();
+
+  for(int i = 0; i<NUM_MOTORS; i++){
+    //motorMoved[i] = 50;
     int pin = motorMap[i];
     int returnval = 0;
     for(int j = 0; j<NUM_SLIDERS; j++){
@@ -93,18 +103,21 @@ void setup() {
     moveSliderTo(1023, pin, motor);
     delay(100);
     moveSliderTo(returnval, pin, motor);
+    delay(100);
+    Serial.println(String(returnval) + " " + String(analogRead(pin)));
   }
-  pushSliderValuesToPC=true;
+  //firstReceive = false;
+  //pushSliderValuesToPC=true;
   Serial.println("INITDONE");
   //Serial.println("");
 }
 
 void loop() {
+  checkForTouch();
+  
   checkForCommand();
   
   updateSliderValues();
-
-  //moveMotors();
 
   //Check for data chanel to be open
   if(pushSliderValuesToPC) {
@@ -123,6 +136,19 @@ void reboot() {
 #elif MCUA328P
   asm volatile ("  jmp 0");  
 #endif
+}
+
+void checkForTouch(){
+  for(int i = 0; i<NUM_MOTORS; i++){
+    if(digitalRead(touchInputs[i]) == 0){
+      touchTimes[i] = millis();
+      touch[i] = true;
+    } else {
+      if(millis() - touchTimes[i] > 500){
+        touch[i] = false;
+      }
+    }
+  }
 }
 
 void showOnDisplay() {
@@ -145,21 +171,44 @@ void showOnDisplay() {
   display.display();
 }
 
-void moveMotors(){
-  for(int i = 0; i<NUM_MOTORS; i++){
+void moveMotor(int i){
+  checkForTouch();
+  if(!touch[i]){
     AF_DCMotor motor = motors[i];    
     int pin = motorMap[i];
     for(int j = 0; j<NUM_SLIDERS; j++){
       if(analogInputs[j] == pin){
-        moveSliderTo(volumeValues[j], pin, motor);
+          moveSliderTo(volumeValues[j], pin, motor);
+          break;
       }
     }
+    motorMoved[i]++;
   }
 }
 
 void updateSliderValues() {
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
+    bool motor = false;
+    int motor_num = -1;
+    for(int j = 0; j<NUM_MOTORS; j++){
+      if(motorMap[j] == analogInputs[i]){
+        motor = true;
+        motor_num = j;
+        break;
+      }
+    }
+    if(!motor){
      analogSliderValues[i] = analogRead(analogInputs[i]);
+    } else {
+      if(touch[motor_num]){
+        analogSliderValues[i] = analogRead(analogInputs[i]);
+      } else {
+        if(motorMoved[i] >= 2){
+          analogSliderValues[i] = volumeValues[i];
+          motorMoved[i] = 0;
+        }
+      }
+    }
   }
   //FOR TESTING:
   //memcpy(analogSliderValues, volumeValues, sizeof(analogSliderValues));
@@ -169,7 +218,7 @@ void sendSliderValues() {
   String sendvals = "";
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
     sendvals += analogSliderValues[i];
-       if (i < NUM_SLIDERS - 1) {
+    if (i < NUM_SLIDERS - 1) {
       sendvals += "|";
     }
   }
@@ -265,12 +314,28 @@ void checkForCommand() {
           Serial.println("INVALID DATA: " + receive);
           return;
         }
+        int saveVals[NUM_SLIDERS];
+        memcpy(saveVals, volumeValues, NUM_SLIDERS);
         String str = getValue(receive, '|', 0);
         for(int i = 1; str != ""; i++){
           volumeValues[i-1] = str.toInt();
           str = getValue(receive, '|', i);
         }
         showOnDisplay();
+        for(int i = 0; i<NUM_MOTORS; i++){
+          for(int j = 0; j<NUM_SLIDERS; j++){
+            if(analogInputs[j] == motorMap[i]){
+              if(abs(volumeValues[j]-analogSliderValues[j]) > 9){
+                moveMotor(i);
+                //motorMoved[i] = 100;
+                break;
+              }
+            }
+          }
+        }
+        /*if(!firstReceive){
+          firstReceive = true;
+        }*/
         Serial.println(receive);
         return;
       }
@@ -316,10 +381,12 @@ void checkForCommand() {
 
 void moveSliderTo(int value, int slider, AF_DCMotor motor){
   int current = analogRead(slider);
-  Serial.println("current: " + String(current) + " moving to: " + String(value));
   int dir = 0;
   if(value > 1023 || value < 0 || abs(current-value)<=1){
     return;
+  }
+  if(abs(current-value) <= 20){
+    motor.setSpeed(100);
   }
   if(value > current){
     motor.run(FORWARD);
@@ -330,7 +397,7 @@ void moveSliderTo(int value, int slider, AF_DCMotor motor){
   } else {
     return;
   }
-  while(abs(current-value) > 1){
+  while(abs(current-value) > 20){
     current = analogRead(slider);
     if(dir == 1 && value < current){
       break;
@@ -338,5 +405,37 @@ void moveSliderTo(int value, int slider, AF_DCMotor motor){
       break;
     }
   }
+  motor.run(RELEASE);
+  delay(5);
+  current = analogRead(slider);
+  if(abs(current-value) > 2){
+    motor.setSpeed(100);
+    if(value > current){
+      motor.run(FORWARD);
+      dir = 1;
+    } else if(value < current){
+      motor.run(BACKWARD);
+      dir = 2;
+    } else {
+      return;
+    }
+    while(abs(current-value) > 6){
+      current = analogRead(slider);
+      if(dir == 1 && value < current){
+        break;
+      } else if(dir == 2 && value > current){
+        break;
+      }
+      if(abs(value-current) > 50){
+        motor.run(RELEASE);
+        delay(5);
+        motor.setSpeed(200);
+        moveSliderTo(value, slider, motor);
+        break;
+      }
+    }
+    motor.run(RELEASE);
+  }
+  motor.setSpeed(200);
   motor.run(RELEASE);
 }

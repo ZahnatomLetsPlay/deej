@@ -127,9 +127,18 @@ func (sio *SerialIO) Initialize() error {
 	sio.logger.Debug(sio.WaitFor(sio.namedLogger, "INITBEGIN"))
 	sio.logger.Debug(sio.WaitFor(sio.namedLogger, "INITDONE"))
 
+	vals := sio.deej.sessions.getVolumes()
+
 	//Get first line of values for slider count
 	sio.WriteStringLine(sio.namedLogger, "deej.core.values")
 	_, line := sio.WaitFor(sio.namedLogger, "values")
+	sio.handleLine(sio.namedLogger, line)
+	
+	if sio.WriteValues(sio.namedLogger, vals) {
+		_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
+	}
+	sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+	_, line = sio.WaitFor(sio.namedLogger, "values")
 	sio.handleLine(sio.namedLogger, line)
 
 	for i := 0; i < 5; i++ {
@@ -149,6 +158,7 @@ func (sio *SerialIO) Start() error {
 		//send group names
 		sio.WriteGroupNames(sio.namedLogger)
 		sio.logger.Debug(sio.WaitFor(sio.namedLogger, "confirm groupnames"))
+
 		sio.Flush(sio.namedLogger)
 
 		//Write something to serial to sync
@@ -166,8 +176,8 @@ func (sio *SerialIO) Start() error {
 
 				sio.handleLine(sio.namedLogger, line)
 
-				vals := sio.deej.GetSessionMap().getVolumes()
 				if !sio.deej.sessions.refreshing {
+					vals := sio.deej.GetSessionMap().getVolumes()
 					if sio.WriteValues(sio.namedLogger, vals) {
 						//sio.logger.Debug(vals)
 						_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
