@@ -40,7 +40,7 @@ const uint8_t motorMap[NUM_MOTORS] = {A11, A10};
 const uint8_t touchInputs[NUM_MOTORS] = {30,31};
 unsigned long touchTimes[NUM_MOTORS];
 bool touch[NUM_MOTORS];
-AF_DCMotor motors[NUM_MOTORS] = {AF_DCMotor(2), AF_DCMotor(1)};
+AF_DCMotor motors[NUM_MOTORS] = {AF_DCMotor(4), AF_DCMotor(2)};
 
 // Constend Send
 bool pushSliderValuesToPC = false;
@@ -97,15 +97,25 @@ void setup() {
     }
     AF_DCMotor motor = motors[i];
     motor.setSpeed(200);
-    delay(100);
+    moveSliderTo(512, pin, motor);
+    //delay(100);
     moveSliderTo(0, pin, motor);
     delay(100);
     moveSliderTo(1023, pin, motor);
     delay(100);
-    moveSliderTo(returnval, pin, motor);
-    delay(100);
-    Serial.println(String(returnval) + " " + String(analogRead(pin)));
+    moveSliderTo(0, pin, motor);
+    /*moveSliderTo(returnval, pin, motor);
+    delay(100);*/
+    //Serial.println(String(returnval) + " " + String(analogRead(pin)));
   }
+  /*for(;;){
+    for(int p = 0; p<=1023; p+=100){
+      for(int i = 0; i<NUM_MOTORS; i++){
+        moveSliderTo(p, motorMap[i], motors[i]);
+        delay(1000);
+      }
+    }
+  }*/
   //firstReceive = false;
   //pushSliderValuesToPC=true;
   Serial.println("INITDONE");
@@ -173,7 +183,7 @@ void showOnDisplay() {
 
 void moveMotor(int i){
   checkForTouch();
-  if(!touch[i]){
+  if(!touch[1]){
     AF_DCMotor motor = motors[i];    
     int pin = motorMap[i];
     for(int j = 0; j<NUM_SLIDERS; j++){
@@ -325,7 +335,7 @@ void checkForCommand() {
         for(int i = 0; i<NUM_MOTORS; i++){
           for(int j = 0; j<NUM_SLIDERS; j++){
             if(analogInputs[j] == motorMap[i]){
-              if(abs(volumeValues[j]-analogSliderValues[j]) > 9){
+              if(abs(volumeValues[j]-analogSliderValues[j]) > 1){
                 moveMotor(i);
                 //motorMoved[i] = 100;
                 break;
@@ -381,12 +391,10 @@ void checkForCommand() {
 
 void moveSliderTo(int value, int slider, AF_DCMotor motor){
   int current = analogRead(slider);
+  //Serial.println("Start " + String(slider) + " " + String(current) + " " + String(value));
   int dir = 0;
-  if(value > 1023 || value < 0 || abs(current-value)<=1){
+  if(value > 1023 || value < 0 || abs(current-value)<=2){
     return;
-  }
-  if(abs(current-value) <= 20){
-    motor.setSpeed(100);
   }
   if(value > current){
     motor.run(FORWARD);
@@ -397,7 +405,7 @@ void moveSliderTo(int value, int slider, AF_DCMotor motor){
   } else {
     return;
   }
-  while(abs(current-value) > 20){
+  while(abs(current-value) > 30){
     current = analogRead(slider);
     if(dir == 1 && value < current){
       break;
@@ -406,36 +414,35 @@ void moveSliderTo(int value, int slider, AF_DCMotor motor){
     }
   }
   motor.run(RELEASE);
-  delay(5);
+  motor.setSpeed(125);
+  delay(10);
   current = analogRead(slider);
-  if(abs(current-value) > 2){
-    motor.setSpeed(100);
-    if(value > current){
-      motor.run(FORWARD);
-      dir = 1;
-    } else if(value < current){
-      motor.run(BACKWARD);
-      dir = 2;
-    } else {
-      return;
-    }
-    while(abs(current-value) > 6){
-      current = analogRead(slider);
-      if(dir == 1 && value < current){
-        break;
-      } else if(dir == 2 && value > current){
-        break;
-      }
-      if(abs(value-current) > 50){
-        motor.run(RELEASE);
-        delay(5);
-        motor.setSpeed(200);
-        moveSliderTo(value, slider, motor);
-        break;
-      }
-    }
-    motor.run(RELEASE);
+  if(value > current){
+    motor.run(FORWARD);
+    dir = 1;
+  } else if(value < current){
+    motor.run(BACKWARD);
+    dir = 2;
+  } else {
+    motor.setSpeed(200);
+    return;
   }
-  motor.setSpeed(200);
+  while(abs(current-value) > 1){
+    current = analogRead(slider);
+    if(dir == 1 && value < current){
+      break;
+    } else if(dir == 2 && value > current){
+      break;
+    }
+    if(abs(value-current) > 31){
+      motor.run(RELEASE);
+      delay(10);
+      motor.setSpeed(200);
+      moveSliderTo(value, slider, motor);
+      break;
+    }
+  }
   motor.run(RELEASE);
+  motor.setSpeed(200);
+  //Serial.println("End " + String(slider) + " " + String(current) + " " + String(value));
 }

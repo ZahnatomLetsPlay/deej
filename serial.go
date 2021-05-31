@@ -37,6 +37,7 @@ type SerialIO struct {
 	lastKnownNumSliders        int
 	currentSliderPercentValues []float32
 	groupnames                 []string
+	firstLine                  bool
 
 	sliderMoveConsumers []chan SliderMoveEvent
 
@@ -66,6 +67,7 @@ func NewSerialIO(deej *Deej, logger *zap.SugaredLogger) (*SerialIO, error) {
 		running:                false,
 		returnCommandConsumers: []chan string{},
 		reader:                 bufio.Reader{},
+		firstLine:              false,
 	}
 
 	logger.Debug("Created serial i/o instance")
@@ -127,25 +129,6 @@ func (sio *SerialIO) Initialize() error {
 	sio.logger.Debug(sio.WaitFor(sio.namedLogger, "INITBEGIN"))
 	sio.logger.Debug(sio.WaitFor(sio.namedLogger, "INITDONE"))
 
-	vals := sio.deej.sessions.getVolumes()
-
-	//Get first line of values for slider count
-	sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-	_, line := sio.WaitFor(sio.namedLogger, "values")
-	sio.handleLine(sio.namedLogger, line)
-	
-	if sio.WriteValues(sio.namedLogger, vals) {
-		_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
-	}
-	sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-	_, line = sio.WaitFor(sio.namedLogger, "values")
-	sio.handleLine(sio.namedLogger, line)
-
-	for i := 0; i < 5; i++ {
-		sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-		sio.WaitFor(sio.namedLogger, "")
-	}
-
 	return nil
 }
 
@@ -154,6 +137,24 @@ func (sio *SerialIO) Start() error {
 	go func() {
 		sio.running = true
 		var line string
+
+		vals := sio.deej.sessions.getVolumes()
+
+		//Get first line of values for slider count
+		sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+		_, line = sio.WaitFor(sio.namedLogger, "values")
+		sio.handleLine(sio.namedLogger, line)
+
+		if sio.WriteValues(sio.namedLogger, vals) {
+			_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
+		}
+		sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+		_, line = sio.WaitFor(sio.namedLogger, "values")
+		sio.handleLine(sio.namedLogger, line)
+		for i := 0; i < 5; i++ {
+			sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+			sio.WaitFor(sio.namedLogger, "")
+		}
 
 		//send group names
 		sio.WriteGroupNames(sio.namedLogger)
@@ -168,6 +169,7 @@ func (sio *SerialIO) Start() error {
 			select {
 			case <-sio.stopChannel:
 				sio.running = false
+				sio.firstLine = false
 			default:
 
 				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
@@ -181,6 +183,9 @@ func (sio *SerialIO) Start() error {
 					if sio.WriteValues(sio.namedLogger, vals) {
 						//sio.logger.Debug(vals)
 						_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
+						if !sio.firstLine {
+							sio.firstLine = true
+						}
 					}
 				}
 			}
@@ -279,15 +284,19 @@ func (sio *SerialIO) WriteGroupNames(logger *zap.SugaredLogger) bool {
 func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) bool {
 	//go func() {
 	line := ""
+	rawline := ""
 	for index, value := range values {
 		if index > sio.lastKnownNumSliders-1 {
 			break
 		}
 		line += strconv.FormatFloat(float64(value*1023.0), 'f', 0, 64)
+		rawline += strconv.FormatFloat(float64(value), 'f', 2, 64)
 		if index < sio.lastKnownNumSliders-1 {
 			line += "|"
+			rawline += "|"
 		}
 	}
+	sio.logger.Debug("Sending values:", rawline)
 	if line != "" {
 		sio.WriteStringLine(logger, "deej.core.receive")
 		sio.WriteStringLine(logger, line)
@@ -524,7 +533,7 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 
 	// deliver move events if there are any, towards all potential consumers
 	//not trigger move events for testing
-	if len(moveEvents) > 0 {
+	if len(moveEvents) > 0 && sio.firstLine {
 		for _, consumer := range sio.sliderMoveConsumers {
 			for _, moveEvent := range moveEvents {
 				consumer <- moveEvent
