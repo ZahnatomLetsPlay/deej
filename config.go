@@ -155,7 +155,8 @@ func (cc *CanonicalConfig) Load() error {
 		"sliderMapping", cc.SliderMapping,
 		"groupNames", cc.GroupNames,
 		"connectionInfo", cc.ConnectionInfo,
-		"invertSliders", cc.InvertSliders)
+		"invertSliders", cc.InvertSliders,
+	)
 
 	return nil
 }

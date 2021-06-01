@@ -285,10 +285,10 @@ func (m *SessionMap) getVolumes() []float32 {
 				//targetFound = true
 
 				// iterate all matching sessions and adjust the volume of each one
-				for _, session := range sessions {
-					m.logger.Debug(session.GetVolume())
-				}
 				vols[i] = sessions[0].GetVolume()
+				/*for _, session := range sessions {
+					m.logger.Debug(session.GetVolume())
+				}*/
 			}
 		}
 
