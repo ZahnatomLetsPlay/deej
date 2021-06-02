@@ -336,6 +336,7 @@ void checkForCommand() {
         Serial.readStringUntil('\n');
         if(receive.length() > (4*NUM_SLIDERS+(NUM_SLIDERS-1)) || receive.length() < (1*NUM_SLIDERS+(NUM_SLIDERS-1))){
           Serial.println("INVALID DATA: " + receive);
+          Serial.flush();
           return;
         }
         int saveVals[NUM_SLIDERS];
@@ -397,6 +398,7 @@ void checkForCommand() {
       //Default Catch all
       else {
         Serial.println("INVALIDCOMMANDS: " + input);
+        Serial.flush();
         return;
       }
     }
