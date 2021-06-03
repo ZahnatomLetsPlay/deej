@@ -115,7 +115,7 @@ func (sio *SerialIO) Initialize() error {
 	var err error
 	sio.conn, err = serial.Open(sio.connOptions)
 	if err != nil {
-
+		sio.connected = false
 		// might need a user notification here, TBD
 		sio.namedLogger.Warnw("Failed to open serial connection", "error", err)
 		return fmt.Errorf("open serial connection: %w", err)
@@ -134,63 +134,75 @@ func (sio *SerialIO) Initialize() error {
 
 // Start attempts to connect to our arduino chip
 func (sio *SerialIO) Start() error {
-	go func() {
-		sio.running = true
-		var line string
+	sio.logger.Debug("Starting serial...")
+	if sio.connected {
+		go func() {
+			sio.running = true
+			var line string
 
-		vals := sio.deej.sessions.getVolumes()
+			vals := sio.deej.sessions.getVolumes()
 
-		//Get first line of values for slider count
-		sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-		_, line = sio.WaitFor(sio.namedLogger, "values")
-		sio.handleLine(sio.namedLogger, line)
-
-		if sio.WriteValues(sio.namedLogger, vals) {
-			_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
-		}
-		sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-		_, line = sio.WaitFor(sio.namedLogger, "values")
-		sio.handleLine(sio.namedLogger, line)
-		for i := 0; i < 5; i++ {
+			//Get first line of values for slider count
 			sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-			sio.WaitFor(sio.namedLogger, "")
-		}
+			_, line = sio.WaitFor(sio.namedLogger, "values")
+			sio.handleLine(sio.namedLogger, line)
 
-		//send group names
-		sio.WriteGroupNames(sio.namedLogger)
-		sio.logger.Debug(sio.WaitFor(sio.namedLogger, "confirm groupnames"))
-
-		sio.Flush(sio.namedLogger)
-
-		//Write something to serial to sync
-		sio.WriteStringLine(sio.namedLogger, "")
-
-		for sio.running {
-			select {
-			case <-sio.stopChannel:
-				sio.running = false
-				sio.firstLine = false
-			default:
-
+			if sio.WriteValues(sio.namedLogger, vals) {
+				_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
+			}
+			sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+			_, line = sio.WaitFor(sio.namedLogger, "values")
+			sio.handleLine(sio.namedLogger, line)
+			for i := 0; i < 5; i++ {
 				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+				sio.WaitFor(sio.namedLogger, "")
+			}
 
-				_, line = sio.WaitFor(sio.namedLogger, "values")
+			//send group names
+			sio.WriteGroupNames(sio.namedLogger)
+			sio.logger.Debug(sio.WaitFor(sio.namedLogger, "confirm groupnames"))
 
-				sio.handleLine(sio.namedLogger, line)
+			sio.Flush(sio.namedLogger)
 
-				if !sio.deej.sessions.refreshing {
-					vals := sio.deej.GetSessionMap().getVolumes()
-					if sio.WriteValues(sio.namedLogger, vals) {
-						//sio.logger.Debug(vals)
-						_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
-						if !sio.firstLine {
-							sio.firstLine = true
+			//Write something to serial to sync
+			sio.WriteStringLine(sio.namedLogger, "")
+
+			for sio.running {
+				select {
+				case <-sio.stopChannel:
+					sio.running = false
+					sio.firstLine = false
+				default:
+
+					sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+
+					_, line = sio.WaitFor(sio.namedLogger, "values")
+
+					sio.handleLine(sio.namedLogger, line)
+
+					if !sio.deej.sessions.refreshing {
+						vals := sio.deej.GetSessionMap().getVolumes()
+						if sio.WriteValues(sio.namedLogger, vals) {
+							//sio.logger.Debug(vals)
+							_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
+							if !sio.firstLine {
+								sio.firstLine = true
+							}
 						}
 					}
 				}
 			}
-		}
-	}()
+		}()
+	} else {
+		go func() {
+			for {
+				select {
+				case <-sio.stopChannel:
+					break
+				}
+			}
+		}()
+	}
 
 	return nil
 }

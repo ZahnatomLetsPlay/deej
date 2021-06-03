@@ -224,7 +224,9 @@ func (d *Deej) run() {
 
 func (d *Deej) signalStop() {
 	d.logger.Debug("Signalling stop channel")
-	d.stopChannel <- true
+	go func() {
+		d.stopChannel <- true
+	}()
 }
 
 func (d *Deej) stop() error {

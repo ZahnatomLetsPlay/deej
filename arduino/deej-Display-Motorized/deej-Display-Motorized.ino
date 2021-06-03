@@ -406,59 +406,43 @@ void checkForCommand() {
 }
 
 void moveSliderTo(int value, int slider, AF_DCMotor motor){
-  int current = getAnalogValue(slider);
-  //Serial.println("Start " + String(slider) + " " + String(current) + " " + String(value));
-  int dir = 0;
-  if(value > 1023 || value < 0 || abs(current-value)<=2){
-    return;
-  }
-  if(value > current){
-    motor.run(FORWARD);
-    dir = 1;
-  } else if(value < current){
-    motor.run(BACKWARD);
-    dir = 2;
-  } else {
-    return;
-  }
-  while(abs(current-value) > 30){
-    current = getAnalogValue(slider);
-    if(dir == 1 && value < current){
-      break;
-    } else if(dir == 2 && value > current){
-      break;
-    }
-  }
-  motor.run(RELEASE);
-  motor.setSpeed(125);
-  delay(10);
-  current = getAnalogValue(slider);
-  if(value > current){
-    motor.run(FORWARD);
-    dir = 1;
-  } else if(value < current){
-    motor.run(BACKWARD);
-    dir = 2;
-  } else {
-    motor.setSpeed(200);
-    return;
-  }
-  while(abs(current-value) > 1){
-    current = getAnalogValue(slider);
-    if(dir == 1 && value < current){
-      break;
-    } else if(dir == 2 && value > current){
-      break;
-    }
-    if(abs(value-current) > 31){
+  int speed = 0;
+  float val = 1;
+  int starterror = value - analogRead(slider);
+  starterror = starterror * val;
+  int mills = millis();
+  for (int error = value- analogRead(slider); abs(error) > 5; error = (value - analogRead(slider))*val) {
+    //error = pos - analogRead(A11);
+    //error = (error + speed)/2;
+    //Serial.println(String(error) + " " + String(speed)/* + " " + String(map(abs(speed), 0, 1023, 120, 255))*/);
+    speed = error;
+    if (speed < 0) {
+      motor.run(BACKWARD);
+    } else if (speed > 0) {
+      motor.run(FORWARD);
+    } else {
       motor.run(RELEASE);
-      delay(10);
-      motor.setSpeed(200);
-      moveSliderTo(value, slider, motor);
+    }
+    speed = abs(speed);
+    if (speed > 175) {
+      speed = 175;
+    } else if (speed < 130) {
+      speed = 130;
+    }
+    //motor.setSpeed(map(abs(speed), -25, 1023, 113, 255));
+    motor.setSpeed(speed);
+    //Serial.println(String(speed) + " " + String(error));
+    /*if((error < 0 && starterror > 0) || (error > 0 && starterror < 0)){
+      Serial.println("OVERSHOT " + String(abs(error)) + " " + String(abs(starterror)));
+    }*/
+    if(millis()-mills > 1000){
+      Serial.println("took too long, aborting... " + String(millis()-mills));
+      mills = millis();
       break;
     }
+    delay(5);
   }
   motor.run(RELEASE);
-  motor.setSpeed(200);
-  //Serial.println("End " + String(slider) + " " + String(current) + " " + String(value));
+  speed = 0;
+  motor.setSpeed(speed);
 }
