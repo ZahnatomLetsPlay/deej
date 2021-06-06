@@ -275,11 +275,11 @@ func (sio *SerialIO) WriteGroupNames(logger *zap.SugaredLogger) bool {
 	groupnames := sio.deej.config.GroupNames
 	line := ""
 	for index, name := range groupnames {
-		if index > sio.savenum-1 {
+		if index > len(groupnames)-1 {
 			break
 		}
 		line += name
-		if index < sio.savenum-1 {
+		if index < len(groupnames)-1 {
 			line += "|"
 		}
 	}
@@ -308,7 +308,7 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) bo
 			rawline += "|"
 		}
 	}
-	sio.logger.Debug("Sending values:", rawline)
+	//sio.logger.Debug("Sending values:", rawline)
 	if line != "" {
 		sio.WriteStringLine(logger, "deej.core.receive")
 		sio.WriteStringLine(logger, line)
@@ -397,6 +397,7 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 
 // Flush clears out the buffers of the serial port
 func (sio *SerialIO) Flush(logger *zap.SugaredLogger) {
+	sio.WriteStringLine(logger, "deej.core.flush")
 	lineChannel := sio.ReadLine(logger)
 loop:
 	for {

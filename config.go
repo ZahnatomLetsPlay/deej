@@ -175,7 +175,7 @@ func (cc *CanonicalConfig) WatchConfigFileChanges() {
 	cc.logger.Debugw("Starting to watch user config file for changes", "path", userConfigFilepath)
 
 	const (
-		minTimeBetweenReloadAttempts = time.Millisecond * 500
+		minTimeBetweenReloadAttempts = time.Millisecond * 5000
 		minTimeBetweenNotifications  = time.Millisecond * 6000
 		delayBetweenEventAndReload   = time.Millisecond * 50
 	)
