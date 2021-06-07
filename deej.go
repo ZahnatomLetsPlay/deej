@@ -232,8 +232,8 @@ func (d *Deej) signalStop() {
 func (d *Deej) stop() error {
 	d.logger.Info("Stopping")
 
-	d.config.StopWatchingConfigFile()
 	d.serial.Shutdown()
+	d.config.StopWatchingConfigFile()
 
 	// release the session map
 	if err := d.sessions.release(); err != nil {

@@ -171,7 +171,6 @@ func (sio *SerialIO) Start() error {
 				select {
 				case <-sio.stopChannel:
 					sio.running = false
-					sio.firstLine = false
 				default:
 
 					sio.WriteStringLine(sio.namedLogger, "deej.core.values")
@@ -253,9 +252,10 @@ func (sio *SerialIO) Shutdown() {
 		}
 
 		sio.logger.Debug("Rebooting Arduino")
-		sio.WriteStringLine(sio.namedLogger, "deej.core.reboot")
+		sio.rebootArduino(sio.namedLogger)
 
 		sio.close(sio.namedLogger)
+		sio.firstLine = false
 		sio.logger.Debug("Serial Shutdown")
 	} else {
 		sio.logger.Debug("Not currently connected, nothing to stop")
@@ -269,6 +269,12 @@ func (sio *SerialIO) SubscribeToSliderMoveEvents() chan SliderMoveEvent {
 	sio.sliderMoveConsumers = append(sio.sliderMoveConsumers, ch)
 
 	return ch
+}
+
+func (sio *SerialIO) rebootArduino(logger *zap.SugaredLogger) {
+	sio.WriteStringLine(sio.namedLogger, "deej.core.reboot")
+	_, line := sio.WaitFor(logger, "lastline")
+	sio.handleLine(sio.namedLogger, line)
 }
 
 func (sio *SerialIO) WriteGroupNames(logger *zap.SugaredLogger) bool {
@@ -372,11 +378,23 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 	//logger.Debug("Waiting for ", cmdKey)
 	reader := sio.reader
 
-	line, err := reader.ReadString('\r')
+	var line string
+	var err error
+	var got bool
 
 	go func() {
+		line, err = reader.ReadString('\r')
+		got = true
 		reader.ReadString('\n')
 	}()
+
+	now := time.Now()
+	for !got {
+		if now.Add(5 * time.Second).Before(time.Now()) {
+			sio.logger.Warn("Got nothing for 5 seconds...")
+			break
+		}
+	}
 
 	if err != nil {
 		sio.logger.Error("Error reading line", "Error: ", err, "Line: ", line)
@@ -472,6 +490,7 @@ func (sio *SerialIO) close(logger *zap.SugaredLogger) {
 
 func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 
+	// trim the suffix
 	line = strings.TrimSuffix(line, "\r")
 
 	// this function receives an unsanitized line which is guaranteed to end with LF,
@@ -481,8 +500,6 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 		logger.Info("unexpected line pattern", line)
 		return
 	}
-
-	// trim the suffix
 
 	// split on pipe (|), this gives a slice of numerical strings between "0" and "1023"
 	splitValues := strings.Split(line, "|")

@@ -100,6 +100,7 @@ func (m *SessionMap) initialize() error {
 }
 
 func (m *SessionMap) release() error {
+	m.logger.Debug("Releasing session finder")
 	if err := m.sessionFinder.Release(); err != nil {
 		m.logger.Warnw("Failed to release session finder during session map release", "error", err)
 		return fmt.Errorf("release session finder during release: %w", err)

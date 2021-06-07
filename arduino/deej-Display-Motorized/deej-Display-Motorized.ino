@@ -18,6 +18,8 @@
 #define FrequencyMS 10
 #define SerialTimeout 5000 //This is two seconds
 #define NUM_MOTORS 1
+#define NUM_MUTES  1
+#define DEBOUNCE_TIME 200
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
@@ -30,11 +32,19 @@ const unsigned char icon [] PROGMEM = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 
 bool makeLogarithmic = false;
 const uint8_t analogInputs[NUM_SLIDERS] = {A11/*, A10};*/, A7, A8, A9};
+//Mute index corresponds to analoginput index
+//If you want to leave an input without mute, enter an unused input
+const uint8_t muteInputs[NUM_MUTES] = {50};
 
 uint16_t analogSliderValues[NUM_SLIDERS];
 uint16_t volumeValues[NUM_SLIDERS];
 String groupNames[NUM_SLIDERS];
 uint8_t motorMoved[NUM_MOTORS];
+uint8_t sliderMuted[NUM_MUTES];
+int buttonState[NUM_MUTES];
+bool mute[NUM_MUTES];
+uint16_t muteValues[NUM_MUTES];
+unsigned long muteTimes[NUM_MUTES];
 //bool firstReceive = true;
 
 //this is what motor has what analog input
@@ -67,7 +77,12 @@ void setup() {
     if (i < NUM_SLIDERS - 1) {
       names += "|";
     }
-
+    if (i < NUM_MUTES) {
+      pinMode(muteInputs[i], INPUT);
+      mute[i] = false;
+      buttonState[i] = LOW;
+      muteTimes[i] = 0;
+    }
     volumeValues[i] = 0;
     analogSliderValues[i] = 0;
 
@@ -134,6 +149,7 @@ void setup() {
 
 void loop() {
   checkForTouch();
+  checkForButton();
 
   checkForCommand();
 
@@ -160,6 +176,28 @@ void reboot() {
 #elif MCUA328P
   asm volatile ("  jmp 0");
 #endif
+}
+
+void checkForButton() {
+  for (int i = 0; i < NUM_MUTES; i++) {
+    int read = digitalRead(muteInputs[i]);
+    int previous = buttonState[i];
+    if (read == HIGH && previous == LOW && millis() - muteTimes[i] > DEBOUNCE_TIME) {
+      if (mute[i]) {
+        mute[i] = false;
+        volumeValues[i] = muteValues[i];
+        analogSliderValues[i] = muteValues[i];
+      } else {
+        mute[i] = true;
+        muteValues[i] = volumeValues[i];
+      }
+      sliderMuted[i] = 0;
+      muteTimes[i] = millis();
+    } else {
+      sliderMuted[i]++;
+    }
+    buttonState[i] = read;
+  }
 }
 
 void checkForTouch() {
@@ -200,19 +238,22 @@ void moveMotor(int i) {
   if (!touch[i]) {
     AF_DCMotor motor = motors[i];
     int pin = motorMap[i];
+    motorMoved[i]++;
     for (int j = 0; j < NUM_SLIDERS; j++) {
       if (analogInputs[j] == pin) {
         uint16_t analogval = getAnalogValue(pin);
-        uint16_t diff = abs((int)volumeValues[j] - (int)analogval);
-        if (diff > 5) {
+        float vol = ((float)volumeValues[i]) / (1023.0) * 100.0;
+        float analogvol = ((float)analogval) / (1023.0) * 100.0;
+        uint16_t diff = abs((int)round(vol) - (int)round(analogvol));
+        if (diff > 2) {
           //Serial.println("Moving slider #" + String(i) + " " + String(analogval) + " " + String(diff));
           moveSliderTo(volumeValues[j], pin, motor);
+          motorMoved[i] = 0;
           break;
         }
         break;
       }
     }
-    motorMoved[i]++;
   }
   //Serial.println("Move " + String(i) + " " + String(touch[i]) + " " + String(motorMoved[i]));
 }
@@ -230,24 +271,28 @@ uint16_t getAnalogValue(int input) {
 
 void updateSliderValues() {
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
-    bool motor = false;
-    int motor_num = -1;
-    for (int j = 0; j < NUM_MOTORS; j++) {
-      if (motorMap[j] == analogInputs[i]) {
-        motor = true;
-        motor_num = j;
-        break;
-      }
-    }
-    if (!motor) {
-      analogSliderValues[i] = getAnalogValue(analogInputs[i]);
+    if (i < NUM_MUTES && mute[i]) {
+      analogSliderValues[i] = 0;
     } else {
-      if (touch[motor_num]) {
+      bool motor = false;
+      int motor_num = -1;
+      for (int j = 0; j < NUM_MOTORS; j++) {
+        if (motorMap[j] == analogInputs[i]) {
+          motor = true;
+          motor_num = j;
+          break;
+        }
+      }
+      if (!motor) {
         analogSliderValues[i] = getAnalogValue(analogInputs[i]);
       } else {
-        if (motorMoved[i] >= 2) {
-          analogSliderValues[i] = volumeValues[i];
-          motorMoved[i] = 0;
+        if (touch[motor_num]) {
+          analogSliderValues[i] = getAnalogValue(analogInputs[i]);
+        } else {
+          if (motorMoved[i] >= 3) {
+            analogSliderValues[i] = volumeValues[i];
+            motorMoved[i] = 0;
+          }
         }
       }
     }
@@ -361,7 +406,13 @@ void checkForCommand() {
         memcpy(saveVals, volumeValues, NUM_SLIDERS);
         String str = getValue(receive, '|', 0);
         for (int i = 1; str != ""; i++) {
-          volumeValues[i - 1] = str.toInt();
+          if (i - 1 < NUM_MUTES) {
+            if (sliderMuted[i - 1] > 2) {
+              volumeValues[i - 1] = str.toInt();
+            }
+          } else {
+            volumeValues[i - 1] = str.toInt();
+          }
           str = getValue(receive, '|', i);
         }
         showOnDisplay();
@@ -412,6 +463,14 @@ void checkForCommand() {
       }
 
       else if ( input.equalsIgnoreCase("deej.core.reboot") == true ) {
+        for (int i = 0; i < NUM_MUTES; i++) {
+          if (mute[i]) {
+            analogSliderValues[i] = muteValues[i];
+          }
+        }
+        delay(1000);
+        sendSliderValues();
+        Serial.flush();
         reboot();
         return;
       }
