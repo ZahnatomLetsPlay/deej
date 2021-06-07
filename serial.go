@@ -140,32 +140,34 @@ func (sio *SerialIO) Start() error {
 			sio.running = true
 			var line string
 
-			vals := sio.deej.sessions.getVolumes()
+			//vals := sio.deej.sessions.getVolumes()
 
 			//Get first line of values for slider count
-			sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-			_, line = sio.WaitFor(sio.namedLogger, "values")
-			sio.handleLine(sio.namedLogger, line)
-
-			if sio.WriteValues(sio.namedLogger, vals) {
-				_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
-			}
-			sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-			_, line = sio.WaitFor(sio.namedLogger, "values")
-			sio.handleLine(sio.namedLogger, line)
-			for i := 0; i < 5; i++ {
+			/*
 				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-				sio.WaitFor(sio.namedLogger, "")
-			}
+				_, line = sio.WaitFor(sio.namedLogger, "values")
+				sio.handleLine(sio.namedLogger, line)
+
+				if sio.WriteValues(sio.namedLogger, vals) {
+					_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
+				}
+				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+				_, line = sio.WaitFor(sio.namedLogger, "values")
+				sio.handleLine(sio.namedLogger, line)
+				for i := 0; i < 5; i++ {
+					sio.WriteStringLine(sio.namedLogger, "deej.core.values")
+					sio.WaitFor(sio.namedLogger, "")
+				}*/
 
 			//send group names
-			sio.WriteGroupNames(sio.namedLogger)
-			sio.logger.Debug(sio.WaitFor(sio.namedLogger, "confirm groupnames"))
+			if sio.WriteGroupNames(sio.namedLogger) {
+				sio.logger.Debug(sio.WaitFor(sio.namedLogger, "confirm groupnames"))
+			}
 
-			sio.Flush(sio.namedLogger)
+			//sio.Flush(sio.namedLogger)
 
 			//Write something to serial to sync
-			sio.WriteStringLine(sio.namedLogger, "")
+			//sio.WriteStringLine(sio.namedLogger, "")
 
 			for sio.running {
 				select {
@@ -378,20 +380,32 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 	//logger.Debug("Waiting for ", cmdKey)
 	reader := sio.reader
 
+	/*line, err := reader.ReadString('\r')
+
+	go func() {
+		reader.ReadString('\n')
+	}()*/
+
 	var line string
 	var err error
-	var got bool
+	got := false
 
 	go func() {
 		line, err = reader.ReadString('\r')
+		//logger.Debug(line)
 		got = true
-		reader.ReadString('\n')
+		go func() {
+			reader.ReadString('\n')
+		}()
 	}()
 
 	now := time.Now()
-	for !got {
+	for {
 		if now.Add(5 * time.Second).Before(time.Now()) {
 			sio.logger.Warn("Got nothing for 5 seconds...")
+			break
+		}
+		if got {
 			break
 		}
 	}
