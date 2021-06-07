@@ -101,8 +101,8 @@ void setup() {
   display.display();
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  delay(1000);
-  showOnDisplay();
+  //delay(1000);
+  //showOnDisplay();
   bool savelog = makeLogarithmic;
   makeLogarithmic = false;
 
@@ -116,7 +116,6 @@ void setup() {
       }
     }
     AF_DCMotor motor = motors[i];
-    motor.setSpeed(200);
     moveSliderTo(512, pin, motor);
     //delay(100);
     moveSliderTo(0, pin, motor);
@@ -206,7 +205,7 @@ void checkForTouch() {
       touchTimes[i] = millis();
       touch[i] = true;
     } else {
-      if (millis() - touchTimes[i] > 500) {
+      if (millis() - touchTimes[i] > DEBOUNCE_TIME) {
         touch[i] = false;
       }
     }
@@ -511,8 +510,8 @@ void moveSliderTo(int value, int slider, AF_DCMotor motor) {
       motor.run(RELEASE);
     }
     speed = abs(speed);
-    if (speed > 200) {
-      speed = 200;
+    if (speed > 210) {
+      speed = 210;
     } else if (speed < 140) {
       speed = 140;
     }
