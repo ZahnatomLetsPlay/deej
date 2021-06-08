@@ -12,14 +12,14 @@ slider_mapping:
   #1: mic
   #2: deej.unmapped
   2: # Media 
-    - msedge.exe
     - firefox.exe                                    # FireFox
     - chrome.exe                                     # Chrome
     - TwitchUI.exe                                   # Twitch
-  #2: # Music
-  #  - spotify.exe                       # Spotify
-  #  - Microsoft.ZuneMusic_10.20032.12611.0_x64__8wekyb3d8bbwe # Builtin Media Player
-  3: mic
+  3: # Music
+    - msedge.exe
+    - spotify.exe                       # Spotify
+    - Microsoft.ZuneMusic_10.20032.12611.0_x64__8wekyb3d8bbwe # Builtin Media Player
+  #3: mic
   #3: 
   #  - discord.exe                       # Discord
   #  - ts3client_win64.exe               # TeamSpeak 3

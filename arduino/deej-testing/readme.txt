@@ -1,0 +1,1 @@
+Never expect this version to be stable or working. This is purely a testing program. Any features that I deem something as working and stable(enough) I'll port it over to the other versions
