@@ -58,6 +58,7 @@ AF_DCMotor motors[NUM_MOTORS] = {AF_DCMotor(4)/*, AF_DCMotor(2)*/};
 // Constend Send
 bool pushSliderValuesToPC = false;
 bool receivednewvalues = false;
+unsigned long lastcmd;
 
 String names;
 
@@ -142,6 +143,7 @@ void setup() {
   //firstReceive = false;
   //pushSliderValuesToPC=true;
   makeLogarithmic = savelog;
+  lastcmd = millis();
   Serial.println("INITDONE");
   //Serial.println("");
 }
@@ -215,11 +217,18 @@ void checkForTouch() {
 void showOnDisplay() {
   String dsp = "";
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
-    float vol = ((float)volumeValues[i]) / (1023.0) * 100.0;
+    float fvol = ((float)volumeValues[i]) / (1023.0) * 100.0;
+    int vol = round(fvol);
     if (vol != 0) {
-      dsp += round(vol);
+      if (vol >= 100) {
+        dsp += String(vol);
+      } else if (vol >= 10 ) {
+        dsp += "0" + String(vol);
+      } else {
+        dsp += "00" + String(vol);
+      }
     } else {
-      dsp += "M";
+      dsp += "MMM";
     }
     if ( i < NUM_SLIDERS - 1) {
       dsp += "|";
@@ -485,6 +494,11 @@ void checkForCommand() {
         Serial.flush();
         return;
       }
+    }
+    lastcmd = millis();
+  } else {
+    if(millis() - lastcmd > 2500){
+      sendSliderValues();
     }
   }
 }

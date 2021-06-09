@@ -40,11 +40,12 @@ slider_mapping:
   5:
 
 # this can be used to display names above sliders with displays
+# typically 3 letters long
 group_names:
-  0: MSTR
-  1: UN
-  2: MDA
-  3: MIC
+  0: MAS
+  1: UNM
+  2: MED
+  3: MUS
 
 # set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
 invert_sliders: false

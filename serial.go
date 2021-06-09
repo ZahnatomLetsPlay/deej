@@ -32,6 +32,7 @@ type SerialIO struct {
 	connOptions           serial.OpenOptions
 	conn                  io.ReadWriteCloser
 	reader                bufio.Reader
+	stopDelay             time.Duration
 
 	savenum                    int
 	lastKnownNumSliders        int
@@ -102,6 +103,8 @@ func (sio *SerialIO) Initialize() error {
 		StopBits:        1,
 		MinimumReadSize: uint(minimumReadSize),
 	}
+
+	sio.stopDelay = 500 * time.Millisecond
 
 	sio.namedLogger = sio.logger.Named(strings.ToLower(sio.connOptions.PortName))
 
@@ -264,6 +267,23 @@ func (sio *SerialIO) Shutdown() {
 	}
 }
 
+func (sio *SerialIO) Restart() {
+	sio.Shutdown()
+
+	// let the connection close
+	<-time.After(sio.stopDelay)
+
+	if inerr := sio.Initialize(); inerr != nil {
+		sio.logger.Warnw("Failed to initialize connection after parameter change", "error", inerr)
+	} else {
+		if err := sio.Start(); err != nil {
+			sio.logger.Warnw("Failed to renew connection after parameter change", "error", err)
+		} else {
+			sio.logger.Debug("Renewed connection successfully")
+		}
+	}
+}
+
 // SubscribeToSliderMoveEvents returns an unbuffered channel that receives
 // a sliderMoveEvent struct every time a slider moves
 func (sio *SerialIO) SubscribeToSliderMoveEvents() chan SliderMoveEvent {
@@ -390,20 +410,29 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 	var err error
 	got := false
 
-	go func() {
+	readerfunc := func() {
 		line, err = reader.ReadString('\r')
 		//logger.Debug(line)
 		got = true
 		go func() {
 			reader.ReadString('\n')
 		}()
-	}()
-
+	}
+	go readerfunc()
 	now := time.Now()
 	for {
 		if now.Add(5 * time.Second).Before(time.Now()) {
 			sio.logger.Warn("Got nothing for 5 seconds...")
-			break
+			/*go func() {
+				if sio.running {
+					sio.stopChannel <- true
+					sio.running = false
+				}
+				sio.close(sio.namedLogger)
+				sio.Restart()
+			}()*/
+			readerfunc = nil
+			return false, ""
 		}
 		if got {
 			break
@@ -447,8 +476,6 @@ func (sio *SerialIO) setupOnConfigReload() {
 	configReloadedChannel := sio.deej.config.SubscribeToChanges()
 	//sessionReloadChannel := sio.deej.sessions.SubscribeToSessionReload()
 
-	const stopDelay = 500 * time.Millisecond
-
 	go func() {
 		for {
 			select {
@@ -461,7 +488,7 @@ func (sio *SerialIO) setupOnConfigReload() {
 				// is still cleared. this is kind of ugly, but shouldn't cause any issues
 				go func() {
 					sio.savenum = sio.lastKnownNumSliders
-					<-time.After(stopDelay)
+					<-time.After(sio.stopDelay)
 					sio.lastKnownNumSliders = 0
 				}()
 
@@ -471,20 +498,7 @@ func (sio *SerialIO) setupOnConfigReload() {
 					!reflect.DeepEqual(sio.deej.config.GroupNames, sio.groupnames) {
 
 					sio.logger.Info("Detected change in connection parameters, attempting to renew connection")
-					sio.Shutdown()
-
-					// let the connection close
-					<-time.After(stopDelay)
-
-					if inerr := sio.Initialize(); inerr != nil {
-						sio.logger.Warnw("Failed to initialize connection after parameter change", "error", inerr)
-					} else {
-						if err := sio.Start(); err != nil {
-							sio.logger.Warnw("Failed to renew connection after parameter change", "error", err)
-						} else {
-							sio.logger.Debug("Renewed connection successfully")
-						}
-					}
+					sio.Restart()
 				}
 			}
 		}
