@@ -7,10 +7,12 @@
 #include <Adafruit_SSD1306.h>
 #include <AFMotor.h>
 #include <PID_v1.h>
+#include <limits.h>
 
 //Microcontroller type
 //#define MCU32U4 1
 #define MCUA328P 1
+#define ULONG_MAX (LONG_MAX * 2UL + 1UL)
 
 //You must Hard Code in the number of Sliders in
 #define NUM_SLIDERS 4
@@ -59,11 +61,12 @@ AF_DCMotor motors[NUM_MOTORS] = {AF_DCMotor(4)/*, AF_DCMotor(2)*/};
 bool pushSliderValuesToPC = false;
 bool receivednewvalues = false;
 unsigned long lastcmd;
+bool firstcmd = false;
+bool lastcmdrequest = true;
 
 String names;
 
 void setup() {
-
   if (!Serial) {
     Serial.end();
   }
@@ -363,6 +366,10 @@ void checkForCommand() {
 
   if (Serial.available() > 0) {
 
+    if (!firstcmd) {
+      firstcmd = true;
+    }
+
     //Get start time of command
     unsigned long timeStart = millis();
 
@@ -392,6 +399,7 @@ void checkForCommand() {
       // Send Single Slider Values
       else if ( input.equalsIgnoreCase("deej.core.values") == true ) {
         sendSliderValues();
+        lastcmdrequest = true;
         return;
       }
 
@@ -440,6 +448,7 @@ void checkForCommand() {
         /*if(!firstReceive){
           firstReceive = true;
           }*/
+        lastcmdrequest = false;
         Serial.println(receive);
         return;
       }
@@ -497,9 +506,23 @@ void checkForCommand() {
     }
     lastcmd = millis();
   } else {
-    if(millis() - lastcmd > 2500){
-      sendSliderValues();
-    }
+    if (millis() - lastcmd > 2500 && firstcmd) {
+      if (!lastcmdrequest) {
+        sendSliderValues();
+        lastcmdrequest = true;
+      } else {
+        String sendvals = "";
+        for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
+          sendvals += volumeValues[i];
+          if (i < NUM_SLIDERS - 1) {
+            sendvals += "|";
+          }
+        }
+        Serial.println(sendvals);
+        lastcmdrequest = false;
+      }
+      //reboot();
+    } 
   }
 }
 

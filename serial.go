@@ -400,13 +400,13 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 	//logger.Debug("Waiting for ", cmdKey)
 	reader := sio.reader
 
-	/*line, err := reader.ReadString('\r')
+	line, err := reader.ReadString('\r')
 
-	go func() {
+	/*go func() {
 		reader.ReadString('\n')
 	}()*/
 
-	var line string
+	/*var line string
 	var err error
 	got := false
 
@@ -423,21 +423,14 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 	for {
 		if now.Add(5 * time.Second).Before(time.Now()) {
 			sio.logger.Warn("Got nothing for 5 seconds...")
-			/*go func() {
-				if sio.running {
-					sio.stopChannel <- true
-					sio.running = false
-				}
-				sio.close(sio.namedLogger)
-				sio.Restart()
-			}()*/
 			readerfunc = nil
+			sio.Flush(logger)
 			return false, ""
 		}
 		if got {
 			break
 		}
-	}
+	}*/
 
 	if err != nil {
 		sio.logger.Error("Error reading line", "Error: ", err, "Line: ", line)
@@ -458,7 +451,9 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 
 // Flush clears out the buffers of the serial port
 func (sio *SerialIO) Flush(logger *zap.SugaredLogger) {
-	sio.WriteStringLine(logger, "deej.core.flush")
+	go func() {
+		sio.WriteStringLine(logger, "deej.core.flush")
+	}()
 	lineChannel := sio.ReadLine(logger)
 loop:
 	for {
