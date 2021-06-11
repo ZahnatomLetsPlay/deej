@@ -65,6 +65,8 @@ bool firstcmd = false;
 bool lastcmdrequest = true;
 
 String names;
+String receiveline = "";
+String sendline = "";
 
 void setup() {
   if (!Serial) {
@@ -241,6 +243,8 @@ void showOnDisplay() {
   display.setCursor(0, 0);
   display.println(names);
   display.println(dsp);
+  display.println(receiveline);
+  display.println(sendline);
   display.display();
 }
 
@@ -320,7 +324,7 @@ void sendSliderValues() {
       sendvals += "|";
     }
   }
-
+  sendline = sendvals;
   Serial.println(sendvals);
 }
 
@@ -387,26 +391,22 @@ void checkForCommand() {
       // Start Sending Slider Values
       if ( input.equalsIgnoreCase("deej.core.start") == true ) {
         pushSliderValuesToPC = true;
-        return;
       }
 
       // Stop Sending Slider Values
       else if ( input.equalsIgnoreCase("deej.core.stop") == true ) {
         pushSliderValuesToPC = false;
-        return;
       }
 
       // Send Single Slider Values
       else if ( input.equalsIgnoreCase("deej.core.values") == true ) {
         sendSliderValues();
         lastcmdrequest = true;
-        return;
       }
 
       // Send Human Readable Slider Values
       else if ( input.equalsIgnoreCase("deej.core.values.HR") == true ) {
         printSliderValues();
-        return;
       }
 
       // Receive Values
@@ -418,6 +418,7 @@ void checkForCommand() {
           Serial.flush();
           return;
         }
+        receiveline = receive;
         int saveVals[NUM_SLIDERS];
         memcpy(saveVals, volumeValues, NUM_SLIDERS);
         String str = getValue(receive, '|', 0);
@@ -450,7 +451,6 @@ void checkForCommand() {
           }*/
         lastcmdrequest = false;
         Serial.println(receive);
-        return;
       }
 
       // Receive Group Names
@@ -476,7 +476,6 @@ void checkForCommand() {
         }
         showOnDisplay();
         Serial.println(receive);
-        return;
       }
 
       else if ( input.equalsIgnoreCase("deej.core.reboot") == true ) {
@@ -489,28 +488,26 @@ void checkForCommand() {
         sendSliderValues();
         Serial.flush();
         reboot();
-        return;
       }
 
       else if (input.equalsIgnoreCase("deej.core.flush")) {
         Serial.flush();
-        return;
       }
 
       //Default Catch all
       else {
         Serial.println("INVALIDCOMMANDS: " + input);
         Serial.flush();
-        return;
       }
     }
     lastcmd = millis();
+    return;
   } else {
-    if (millis() - lastcmd > 2500 && firstcmd) {
-      if (!lastcmdrequest) {
+    if ((millis() - lastcmd) > 500 && firstcmd) {
+      /*if (!lastcmdrequest) {
         sendSliderValues();
         lastcmdrequest = true;
-      } else {
+        } else {
         String sendvals = "";
         for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
           sendvals += volumeValues[i];
@@ -520,15 +517,34 @@ void checkForCommand() {
         }
         Serial.println(sendvals);
         lastcmdrequest = false;
-      }
+        }
+        //reboot();
+        firscmd = false;
+        lastcmd = millis();*/
+      /*if (lastcmdrequest) {
+        String sendvals = "";
+        for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
+          sendvals += volumeValues[i];
+          if (i < NUM_SLIDERS - 1) {
+            sendvals += "|";
+          }
+        }
+        Serial.println(sendvals);
+      }*/
+      sendSliderValues();
+      lastcmd = millis();
+      Serial.flush();
       //reboot();
-    } 
+    }
   }
 }
 
 void moveSliderTo(int value, int slider, AF_DCMotor motor) {
   int speed = 0;
-  int error = (int)value - (int)getAnalogValue(slider);
+  //int error = (int)value - (int)getAnalogValue(slider);
+  float vol = ((float)value) / (1023.0) * 100.0;
+  float analogvol = ((float)getAnalogValue(slider)) / (1023.0) * 100.0;
+  int error = (int)round(vol) - (int)round(analogvol);
   //Serial.println("moving to " + String(value) + " from " + String(analogRead(slider)) + " with error " + String(starterror));
   if (abs(error) <= 2 || value > 1023 || value < 0) {
     return;

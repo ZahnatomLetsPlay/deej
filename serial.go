@@ -182,6 +182,7 @@ func (sio *SerialIO) Start() error {
 
 					_, line = sio.WaitFor(sio.namedLogger, "values")
 
+					//sio.logger.Debug(line)
 					sio.handleLine(sio.namedLogger, line)
 
 					if !sio.deej.sessions.refreshing {
@@ -192,6 +193,8 @@ func (sio *SerialIO) Start() error {
 							if !sio.firstLine {
 								sio.firstLine = true
 							}
+						} else {
+							sio.logger.Debug("Couldn't send values: ", vals)
 						}
 					}
 				}
