@@ -184,11 +184,12 @@ func (m *SessionMap) setupOnSliderMove() {
 }
 
 func (m *SessionMap) refreshSessions(force bool) bool {
-	m.refreshing = true
 	// make sure enough time passed since the last refresh, unless force is true in which case always clear
 	if !force && m.lastSessionRefresh.Add(minTimeBetweenSessionRefreshes).After(time.Now()) {
 		return false
 	}
+
+	m.refreshing = true
 
 	// clear and release sessions first
 	m.clear()
@@ -253,9 +254,9 @@ func (m *SessionMap) getVolumes() []float32 {
 	vols := make([]float32, num_sliders)
 	/*if m.lastSessionRefresh.Add(maxTimeBetweenSessionRefreshes).Before((time.Now())) {
 		m.logger.Debug("Stale session map detected on volume request, refreshing")
-		m.refreshSessions(true)
-	}*/
-	//m.refreshSessions(false)
+		m.refreshSessions(false)
+	}
+	m.refreshSessions(false)*/
 	for i := 0; i < num_sliders; i++ {
 		targets, ok := m.deej.config.SliderMapping.Get(i)
 		if !ok {
@@ -352,12 +353,14 @@ func (m *SessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 	// processes could've opened since the last time this slider moved.
 	// if they haven't, the cooldown will take care to not spam it up
 	if !targetFound {
+		m.logger.Debug("Target not found, refreshing")
 		m.refreshSessions(false)
 	} else if adjustmentFailed {
 
 		// performance: the reason that forcing a refresh here is okay is that we'll only get here
 		// when a session's SetVolume call errored, such as in the case of a stale master session
 		// (or another, more catastrophic failure happens)
+		m.logger.Debug("Adjustment failed, refreshing")
 		m.refreshSessions(true)
 	}
 }

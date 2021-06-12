@@ -17,8 +17,6 @@ slider_mapping:
     - TwitchUI.exe                                   # Twitch
   3: # Music
     - msedge.exe
-    - spotify.exe                       # Spotify
-    - Microsoft.ZuneMusic_10.20032.12611.0_x64__8wekyb3d8bbwe # Builtin Media Player
   #3: mic
   #3: 
   #  - discord.exe                       # Discord

@@ -523,7 +523,13 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 	// but most lines will end with CRLF. it may also have garbage instead of
 	// deej-formatted values, so we must check for that! just ignore bad ones
 	if !expectedLinePattern.MatchString(line) {
-		logger.Info("unexpected line pattern", line)
+		logger.Info("Unexpected line pattern", line)
+		if line == "INITDONE" || line == "INITBEGIN" {
+			logger.Info("Arduino reset detected, restarting serial connection")
+			go func() {
+				sio.Restart()
+			}()
+		}
 		return
 	}
 

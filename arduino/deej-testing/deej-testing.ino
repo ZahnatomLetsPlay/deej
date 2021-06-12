@@ -107,13 +107,10 @@ void setup() {
   display.display();
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  //delay(1000);
-  //showOnDisplay();
   bool savelog = makeLogarithmic;
   makeLogarithmic = false;
 
   for (int i = 0; i < NUM_MOTORS; i++) {
-    //motorMoved[i] = 50;
     int pin = motorMap[i];
     int returnval = 0;
     for (int j = 0; j < NUM_SLIDERS; j++) {
@@ -129,28 +126,10 @@ void setup() {
     moveSliderTo(1023, pin, motor);
     delay(100);
     moveSliderTo(0, pin, motor);
-    /*moveSliderTo(returnval, pin, motor);
-      delay(100);*/
-    //Serial.println(String(returnval) + " " + String(getAnalogValue(pin)));
   }
-  /*for(int i = 0; i<= 1023; i++){
-    Serial.println(map((log10(i+1))*100, (float)log10(1)*100, (float)log10(1024)*100, (float)0, (float)1023));
-    }*/
-  //for(;;);
-  /*for(;;){
-    for(int p = 0; p<=1023; p+=100){
-      for(int i = 0; i<NUM_MOTORS; i++){
-        moveSliderTo(p, motorMap[i], motors[i]);
-        delay(1000);
-      }
-    }
-    }*/
-  //firstReceive = false;
-  //pushSliderValuesToPC=true;
   makeLogarithmic = savelog;
   lastcmd = millis();
   Serial.println("INITDONE");
-  //Serial.println("");
 }
 
 void loop() {
@@ -270,7 +249,6 @@ void moveMotor(int i) {
       }
     }
   }
-  //Serial.println("Move " + String(i) + " " + String(touch[i]) + " " + String(motorMoved[i]));
 }
 
 uint16_t getAnalogValue(int input) {
@@ -433,22 +411,6 @@ void checkForCommand() {
           str = getValue(receive, '|', i);
         }
         showOnDisplay();
-        /*for(int i = 0; i<NUM_MOTORS; i++){
-          for(int j = 0; j<NUM_SLIDERS; j++){
-            if(analogInputs[j] == motorMap[i]){
-              if(abs(volumeValues[j]-getAnalogValue(motorMap[i])) > 3){
-              //if(abs(volumeValues[j]-saveVals[j]) > 2){
-              Serial.println(abs(volumeValues[j] - getAnalogValue(motorMap[i])));
-                moveMotor(i);
-                //motorMoved[i] = 100;
-                break;
-              }
-            }
-          }
-          }*/
-        /*if(!firstReceive){
-          firstReceive = true;
-          }*/
         lastcmdrequest = false;
         Serial.println(receive);
       }
@@ -504,33 +466,6 @@ void checkForCommand() {
     return;
   } else {
     if ((millis() - lastcmd) > 500 && firstcmd) {
-      /*if (!lastcmdrequest) {
-        sendSliderValues();
-        lastcmdrequest = true;
-        } else {
-        String sendvals = "";
-        for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
-          sendvals += volumeValues[i];
-          if (i < NUM_SLIDERS - 1) {
-            sendvals += "|";
-          }
-        }
-        Serial.println(sendvals);
-        lastcmdrequest = false;
-        }
-        //reboot();
-        firscmd = false;
-        lastcmd = millis();*/
-      /*if (lastcmdrequest) {
-        String sendvals = "";
-        for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
-          sendvals += volumeValues[i];
-          if (i < NUM_SLIDERS - 1) {
-            sendvals += "|";
-          }
-        }
-        Serial.println(sendvals);
-      }*/
       sendSliderValues();
       lastcmd = millis();
       Serial.flush();
@@ -541,19 +476,14 @@ void checkForCommand() {
 
 void moveSliderTo(int value, int slider, AF_DCMotor motor) {
   int speed = 0;
-  //int error = (int)value - (int)getAnalogValue(slider);
   float vol = ((float)value) / (1023.0) * 100.0;
   float analogvol = ((float)getAnalogValue(slider)) / (1023.0) * 100.0;
   int error = (int)round(vol) - (int)round(analogvol);
-  //Serial.println("moving to " + String(value) + " from " + String(analogRead(slider)) + " with error " + String(starterror));
   if (abs(error) <= 2 || value > 1023 || value < 0) {
     return;
   }
   unsigned long mills = millis();
-  //Serial.println("1: " + String(abs(error)) + " " + String(speed) + " " + String(abs(error) > 2));
   while (abs((int)error) > 2) {
-    //error = pos - analogRead(A11);
-    //error = (error + speed)/2;
     speed = (int)error;
     if (speed < 0) {
       motor.run(BACKWARD);
@@ -568,20 +498,13 @@ void moveSliderTo(int value, int slider, AF_DCMotor motor) {
     } else if (speed < 140) {
       speed = 140;
     }
-    //motor.setSpeed(map(abs(speed), -25, 1023, 113, 255));
     motor.setSpeed(speed);
-    /*if((error < 0 && starterror > 0) || (error > 0 && starterror < 0)){
-      Serial.println("OVERSHOT " + String(abs(error)) + " " + String(abs(starterror))); 0|1023|1023|1023 512|1023|1023|1023 1023|1023|1023|1023
-      }*/
     if ((millis() - mills) > 5000) {
-      //Serial.println("took too long, aborting... " + String(millis()-mills));
       break;
     }
     delay(5);
     error = ((int)value - (int)getAnalogValue(slider));
-    //Serial.println(String(speed) + " " + String(error));
   }
-  //Serial.println("2: " + String(abs(error)) + " " + String(speed) + " " + String(abs(error) > 2));
   motor.run(RELEASE);
   speed = 0;
   motor.setSpeed(speed);
