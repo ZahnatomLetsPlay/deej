@@ -15,8 +15,10 @@ slider_mapping:
     - firefox.exe                                    # FireFox
     - chrome.exe                                     # Chrome
     - TwitchUI.exe                                   # Twitch
+    - discord.exe                                    # Discord
   3: # Music
     - msedge.exe
+  4: mic
   #3: mic
   #3: 
   #  - discord.exe                       # Discord
@@ -44,6 +46,7 @@ group_names:
   1: UNM
   2: MED
   3: MUS
+  4: MIC
 
 # set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
 invert_sliders: false

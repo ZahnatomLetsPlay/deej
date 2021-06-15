@@ -353,14 +353,12 @@ func (m *SessionMap) handleSliderMoveEvent(event SliderMoveEvent) {
 	// processes could've opened since the last time this slider moved.
 	// if they haven't, the cooldown will take care to not spam it up
 	if !targetFound {
-		m.logger.Debug("Target not found, refreshing")
 		m.refreshSessions(false)
 	} else if adjustmentFailed {
 
 		// performance: the reason that forcing a refresh here is okay is that we'll only get here
 		// when a session's SetVolume call errored, such as in the case of a stale master session
 		// (or another, more catastrophic failure happens)
-		m.logger.Debug("Adjustment failed, refreshing")
 		m.refreshSessions(true)
 	}
 }

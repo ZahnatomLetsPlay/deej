@@ -104,7 +104,7 @@ func (sio *SerialIO) Initialize() error {
 		MinimumReadSize: uint(minimumReadSize),
 	}
 
-	sio.stopDelay = 500 * time.Millisecond
+	sio.stopDelay = 10 * time.Millisecond
 
 	sio.namedLogger = sio.logger.Named(strings.ToLower(sio.connOptions.PortName))
 
@@ -141,36 +141,30 @@ func (sio *SerialIO) Start() error {
 	if sio.connected {
 		go func() {
 			sio.running = true
-			var line string
+			line := ""
+			/*if adjusted {
+			}
+			values := sio.deej.sessions.getVolumes()
 
-			//vals := sio.deej.sessions.getVolumes()
-
-			//Get first line of values for slider count
-			/*
-				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-				_, line = sio.WaitFor(sio.namedLogger, "values")
-				sio.handleLine(sio.namedLogger, line)
-
-				if sio.WriteValues(sio.namedLogger, vals) {
-					_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
+			if sio.lastKnownNumSliders == 0 {
+				sio.lastKnownNumSliders = len(values)
+			}
+			for index, value := range values {
+				if index > sio.lastKnownNumSliders-1 {
+					break
 				}
-				sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-				_, line = sio.WaitFor(sio.namedLogger, "values")
-				sio.handleLine(sio.namedLogger, line)
-				for i := 0; i < 5; i++ {
-					sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-					sio.WaitFor(sio.namedLogger, "")
-				}*/
+				line += strconv.FormatFloat(float64(value*1023.0), 'f', 0, 64)
+				if index < sio.lastKnownNumSliders-1 {
+					line += "|"
+				}
+			}
+
+			sio.handleLine(sio.namedLogger, line)*/
 
 			//send group names
 			if sio.WriteGroupNames(sio.namedLogger) {
 				sio.logger.Debug(sio.WaitFor(sio.namedLogger, "confirm groupnames"))
 			}
-
-			//sio.Flush(sio.namedLogger)
-
-			//Write something to serial to sync
-			//sio.WriteStringLine(sio.namedLogger, "")
 
 			for sio.running {
 				select {
@@ -182,7 +176,6 @@ func (sio *SerialIO) Start() error {
 
 					_, line = sio.WaitFor(sio.namedLogger, "values")
 
-					//sio.logger.Debug(line)
 					sio.handleLine(sio.namedLogger, line)
 
 					if !sio.deej.sessions.refreshing {
@@ -274,6 +267,7 @@ func (sio *SerialIO) Restart() {
 	sio.Shutdown()
 
 	// let the connection close
+	// seems kinda pointless though
 	<-time.After(sio.stopDelay)
 
 	if inerr := sio.Initialize(); inerr != nil {
@@ -328,6 +322,9 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) bo
 	//go func() {
 	line := ""
 	rawline := ""
+	if sio.lastKnownNumSliders == 0 {
+		sio.lastKnownNumSliders = len(values)
+	}
 	for index, value := range values {
 		if index > sio.lastKnownNumSliders-1 {
 			break
@@ -346,9 +343,9 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) bo
 		return true
 	}
 
-	return false
+	sio.logger.Debug("Couldn't send values:", line)
 
-	//sio.logger.Debug("Sending values:", line)
+	return false
 	//}()
 }
 
@@ -514,7 +511,8 @@ func (sio *SerialIO) close(logger *zap.SugaredLogger) {
 	sio.connected = false
 }
 
-func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
+//Returns true if volume was adjusted
+func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) bool {
 
 	// trim the suffix
 	line = strings.TrimSuffix(line, "\r")
@@ -530,7 +528,7 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 				sio.Restart()
 			}()
 		}
-		return
+		return false
 	}
 
 	// split on pipe (|), this gives a slice of numerical strings between "0" and "1023"
@@ -562,7 +560,7 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 		// so let's check the first number for correctness just in case
 		if sliderIdx == 0 && number > 1023 {
 			sio.logger.Debugw("Got malformed line from serial, ignoring", "line", line)
-			return
+			return false
 		}
 
 		// map the value from raw to a "dirty" float between 0 and 1 (e.g. 0.15451...)
@@ -580,7 +578,9 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 		if util.SignificantlyDifferent(sio.currentSliderPercentValues[sliderIdx], normalizedScalar, sio.deej.config.NoiseReductionLevel) {
 
 			// if it does, update the saved value and create a move event
+			//if sio.firstLine {
 			sio.currentSliderPercentValues[sliderIdx] = normalizedScalar
+			//}
 
 			moveEvents = append(moveEvents, SliderMoveEvent{
 				SliderID:     sliderIdx,
@@ -601,5 +601,10 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) {
 				consumer <- moveEvent
 			}
 		}
+	}
+	if len(moveEvents) > 0 {
+		return true
+	} else {
+		return false
 	}
 }
