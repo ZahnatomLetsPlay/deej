@@ -142,24 +142,8 @@ func (sio *SerialIO) Start() error {
 		go func() {
 			sio.running = true
 			line := ""
-			/*if adjusted {
-			}
-			values := sio.deej.sessions.getVolumes()
-
-			if sio.lastKnownNumSliders == 0 {
-				sio.lastKnownNumSliders = len(values)
-			}
-			for index, value := range values {
-				if index > sio.lastKnownNumSliders-1 {
-					break
-				}
-				line += strconv.FormatFloat(float64(value*1023.0), 'f', 0, 64)
-				if index < sio.lastKnownNumSliders-1 {
-					line += "|"
-				}
-			}
-
-			sio.handleLine(sio.namedLogger, line)*/
+			vals := sio.deej.GetSessionMap().getVolumes()
+			same := 0
 
 			//send group names
 			if sio.WriteGroupNames(sio.namedLogger) {
@@ -173,15 +157,21 @@ func (sio *SerialIO) Start() error {
 				default:
 
 					sio.WriteStringLine(sio.namedLogger, "deej.core.values")
-
 					_, line = sio.WaitFor(sio.namedLogger, "values")
 
-					sio.handleLine(sio.namedLogger, line)
+					if same > 1 || !sio.firstLine {
+						sio.handleLine(sio.namedLogger, line)
+					}
 
+					if reflect.DeepEqual(vals, sio.deej.GetSessionMap().getVolumes()) {
+						same++
+					} else {
+						same = 0
+					}
+
+					vals = sio.deej.GetSessionMap().getVolumes()
 					if !sio.deej.sessions.refreshing {
-						vals := sio.deej.GetSessionMap().getVolumes()
 						if sio.WriteValues(sio.namedLogger, vals) {
-							//sio.logger.Debug(vals)
 							_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
 							if !sio.firstLine {
 								sio.firstLine = true

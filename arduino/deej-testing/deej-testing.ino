@@ -283,7 +283,7 @@ void updateSliderValues() {
         if (touch[motor_num]) {
           analogSliderValues[i] = getAnalogValue(analogInputs[i]);
         } else {
-          if (motorMoved[i] >= 1) {
+          if (motorMoved[i] >= 0) {
             analogSliderValues[i] = volumeValues[i];
             //motorMoved[i] = 0;
           }
