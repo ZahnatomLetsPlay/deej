@@ -234,10 +234,9 @@ void moveMotor(int i) {
     motorMoved[i]++;
     for (int j = 0; j < NUM_SLIDERS; j++) {
       if (analogInputs[j] == pin) {
-        uint16_t analogval = getAnalogValue(pin);
-        float vol = ((float)volumeValues[i]) / (1023.0) * 100.0;
-        float analogvol = ((float)analogval) / (1023.0) * 100.0;
-        uint16_t diff = abs((int)round(vol) - (int)round(analogvol));
+        int vol = toVolume(volumeValues[i]);
+        int analogvol = toVolume(getAnalogValue(pin));
+        uint16_t diff = abs(vol - analogvol);
         if (diff > 0) {
           //Serial.println("Moving slider #" + String(i) + " " + String(analogval) + " " + String(diff));
           checkForTouch();
@@ -326,6 +325,10 @@ void printSliderValues() {
       Serial.println(" END ");
     }
   }
+}
+
+int toVolume(int val) {
+  return (int) floor(((float) val) / 1023 * 100);
 }
 
 String getValue(String data, char separator, int index) {
@@ -477,21 +480,22 @@ void checkForCommand() {
 
 void moveSliderTo(int value, int slider, AF_DCMotor motor) {
   int speed = 0;
-  float vol = ((float)value) / (1023.0) * 100.0;
-  float analogvol = ((float)getAnalogValue(slider)) / (1023.0) * 100.0;
-  int error = (int)round(vol) - (int)round(analogvol);
+  int vol = toVolume(value);
+  int analogvol = toVolume(getAnalogValue(slider));
+  int error = vol - analogvol;
   if (abs(error) <= 2 || value > 1023 || value < 0) {
     return;
   }
   unsigned long mills = millis();
-  while (abs((int)error) > 2) {
-    speed = (int)error;
+  while (abs(error) > 1) {
+    speed = (int)((int)value - (int)getAnalogValue(slider));
     if (speed < 0) {
       motor.run(BACKWARD);
     } else if (speed > 0) {
       motor.run(FORWARD);
     } else {
       motor.run(RELEASE);
+      return;
     }
     speed = abs(speed);
     if (speed > 210) {
@@ -504,7 +508,7 @@ void moveSliderTo(int value, int slider, AF_DCMotor motor) {
       break;
     }
     delay(5);
-    error = ((int)value - (int)getAnalogValue(slider));
+    error = vol - toVolume(getAnalogValue(slider));
   }
   motor.run(RELEASE);
   speed = 0;

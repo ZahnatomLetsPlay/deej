@@ -28,6 +28,7 @@ type SerialIO struct {
 	stopChannel           chan bool
 	connected             bool
 	running               bool
+	reset                 bool
 	configReloadedChannel chan bool
 	connOptions           serial.OpenOptions
 	conn                  io.ReadWriteCloser
@@ -69,6 +70,7 @@ func NewSerialIO(deej *Deej, logger *zap.SugaredLogger) (*SerialIO, error) {
 		returnCommandConsumers: []chan string{},
 		reader:                 bufio.Reader{},
 		firstLine:              false,
+		reset:                  false,
 	}
 
 	logger.Debug("Created serial i/o instance")
@@ -144,6 +146,7 @@ func (sio *SerialIO) Start() error {
 			line := ""
 			vals := sio.deej.GetSessionMap().getVolumes()
 			same := 0
+			adjusted := false
 
 			//send group names
 			if sio.WriteGroupNames(sio.namedLogger) {
@@ -160,10 +163,10 @@ func (sio *SerialIO) Start() error {
 					_, line = sio.WaitFor(sio.namedLogger, "values")
 
 					if same > 1 || !sio.firstLine {
-						sio.handleLine(sio.namedLogger, line)
+						adjusted = sio.handleLine(sio.namedLogger, line)
 					}
 
-					if reflect.DeepEqual(vals, sio.deej.GetSessionMap().getVolumes()) {
+					if reflect.DeepEqual(vals, sio.deej.GetSessionMap().getVolumes()) || adjusted {
 						same++
 					} else {
 						same = 0
@@ -247,6 +250,7 @@ func (sio *SerialIO) Shutdown() {
 
 		sio.close(sio.namedLogger)
 		sio.firstLine = false
+		sio.reset = false
 		sio.logger.Debug("Serial Shutdown")
 	} else {
 		sio.logger.Debug("Not currently connected, nothing to stop")
@@ -283,7 +287,9 @@ func (sio *SerialIO) SubscribeToSliderMoveEvents() chan SliderMoveEvent {
 func (sio *SerialIO) rebootArduino(logger *zap.SugaredLogger) {
 	sio.WriteStringLine(sio.namedLogger, "deej.core.reboot")
 	_, line := sio.WaitFor(logger, "lastline")
-	sio.handleLine(sio.namedLogger, line)
+	if !sio.reset {
+		sio.handleLine(sio.namedLogger, line)
+	}
 }
 
 func (sio *SerialIO) WriteGroupNames(logger *zap.SugaredLogger) bool {
@@ -515,6 +521,7 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) bool {
 		if line == "INITDONE" || line == "INITBEGIN" {
 			logger.Info("Arduino reset detected, restarting serial connection")
 			go func() {
+				sio.reset = true
 				sio.Restart()
 			}()
 		}
