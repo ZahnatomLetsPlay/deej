@@ -200,8 +200,7 @@ void checkForTouch() {
 void showOnDisplay() {
   String dsp = "";
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
-    float fvol = ((float)volumeValues[i]) / (1023.0) * 100.0;
-    int vol = round(fvol);
+    int vol = toVolume(volumeValues[i]);
     if (vol != 0) {
       if (vol >= 100) {
         dsp += String(vol);
@@ -237,7 +236,7 @@ void moveMotor(int i) {
         int vol = toVolume(volumeValues[i]);
         int analogvol = toVolume(getAnalogValue(pin));
         uint16_t diff = abs(vol - analogvol);
-        if (diff > 0) {
+        if (diff > 2) {
           //Serial.println("Moving slider #" + String(i) + " " + String(analogval) + " " + String(diff));
           checkForTouch();
           if (!touch[i]) {
@@ -328,7 +327,8 @@ void printSliderValues() {
 }
 
 int toVolume(int val) {
-  return (int) floor(((float) val) / 1023 * 100);
+  return (int) round((float) ((float)((float) val)/1023)*100);
+  //return (int) floor(((float) val) / 1023 * 100);
 }
 
 String getValue(String data, char separator, int index) {
@@ -483,7 +483,7 @@ void moveSliderTo(int value, int slider, AF_DCMotor motor) {
   int vol = toVolume(value);
   int analogvol = toVolume(getAnalogValue(slider));
   int error = vol - analogvol;
-  if (abs(error) <= 2 || value > 1023 || value < 0) {
+  if (value > 1023 || value < 0) {
     return;
   }
   unsigned long mills = millis();
