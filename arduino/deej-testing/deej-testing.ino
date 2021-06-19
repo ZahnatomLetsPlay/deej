@@ -17,7 +17,7 @@
 //You must Hard Code in the number of Sliders in
 #define NUM_SLIDERS 5
 #define SERIALSPEED 115200
-#define FrequencyMS 10
+#define FrequencyMS 5
 #define SerialTimeout 5000 //This is two seconds
 #define NUM_MOTORS 2
 #define NUM_MUTES  1
@@ -90,7 +90,6 @@ void setup() {
     }
     volumeValues[i] = 0;
     analogSliderValues[i] = 0;
-
   }
   for (int i = 0; i < NUM_MOTORS; i++) {
     touch[i] = true;
@@ -327,7 +326,7 @@ void printSliderValues() {
 }
 
 int toVolume(int val) {
-  return (int) round((float) ((float)((float) val)/1023)*100);
+  return (int) round((float) ((float)((float) val) / 1023) * 100);
   //return (int) floor(((float) val) / 1023 * 100);
 }
 
