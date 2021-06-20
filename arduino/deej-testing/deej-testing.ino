@@ -17,7 +17,7 @@
 //You must Hard Code in the number of Sliders in
 #define NUM_SLIDERS 5
 #define SERIALSPEED 115200
-#define FrequencyMS 5
+#define FrequencyMS 10
 #define SerialTimeout 5000 //This is two seconds
 #define NUM_MOTORS 2
 #define NUM_MUTES  1
@@ -143,8 +143,10 @@ void loop() {
     sendSliderValues(); // Actually send data
   }
 
-  for (int i = 0; i < NUM_MOTORS; i++) {
-    moveMotor(i);
+  if (firstcmd) {
+    for (int i = 0; i < NUM_MOTORS; i++) {
+      moveMotor(i);
+    }
   }
 
   // printSliderValues(); // For debug
@@ -326,8 +328,7 @@ void printSliderValues() {
 }
 
 int toVolume(int val) {
-  return (int) round((float) ((float)((float) val) / 1023) * 100);
-  //return (int) floor(((float) val) / 1023 * 100);
+  return round(((float(val) / 1023)) * 100);
 }
 
 String getValue(String data, char separator, int index) {

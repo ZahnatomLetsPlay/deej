@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -325,8 +326,8 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) bo
 		if index > sio.lastKnownNumSliders-1 {
 			break
 		}
-		line += strconv.FormatFloat(float64(value*1023.0), 'f', 0, 64)
-		rawline += strconv.FormatFloat(float64(value), 'f', 2, 64)
+		line += strconv.FormatFloat(float64(math.Ceil(float64(value*1023))), 'f', 0, 32)
+		rawline += strconv.FormatFloat(float64(math.Floor(float64(value*1023))), 'f', 0, 32)
 		if index < sio.lastKnownNumSliders-1 {
 			line += "|"
 			rawline += "|"
