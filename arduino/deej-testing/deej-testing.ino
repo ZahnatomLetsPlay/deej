@@ -117,16 +117,17 @@ void setup() {
       }
     }
     AF_DCMotor motor = motors[i];
-    moveSliderTo(512, pin, motor);
+    //moveSliderTo(512, pin, motor);
     //delay(100);
-    moveSliderTo(0, pin, motor);
-    delay(100);
-    moveSliderTo(1023, pin, motor);
-    delay(100);
+    //moveSliderTo(0, pin, motor);
+    //delay(100);
+    //moveSliderTo(1023, pin, motor);
+    //delay(100);
     moveSliderTo(0, pin, motor);
   }
   makeLogarithmic = savelog;
   lastcmd = millis();
+  int movespeeds[NUM_MOTORS];
   Serial.println("INITDONE");
 }
 
