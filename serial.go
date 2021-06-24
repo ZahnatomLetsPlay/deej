@@ -326,7 +326,7 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) bo
 		if index > sio.lastKnownNumSliders-1 {
 			break
 		}
-		line += strconv.FormatFloat(float64(math.Ceil(float64(value*1023))), 'f', 0, 32)
+		line += strconv.FormatFloat(float64(math.Round(float64(value*1023))), 'f', 0, 32)
 		rawline += strconv.FormatFloat(float64(math.Ceil(float64(value*1023))), 'f', 0, 32)
 		if index < sio.lastKnownNumSliders-1 {
 			line += "|"
@@ -571,6 +571,8 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) bool {
 		if sio.deej.config.InvertSliders {
 			normalizedScalar = 1 - normalizedScalar
 		}
+
+		//logger.Debug(sio.currentSliderPercentValues[sliderIdx], " ", normalizedScalar, " ", number)
 
 		// check if it changes the desired state (could just be a jumpy raw slider value)
 		if util.SignificantlyDifferent(sio.currentSliderPercentValues[sliderIdx], normalizedScalar, sio.deej.config.NoiseReductionLevel) {
