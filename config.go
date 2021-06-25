@@ -20,6 +20,7 @@ type CanonicalConfig struct {
 	SliderMapping *SliderMap
 
 	GroupNames []string
+	Presets    []string
 
 	ConnectionInfo struct {
 		COMPort  string
@@ -55,6 +56,7 @@ const (
 
 	configKeySliderMapping       = "slider_mapping"
 	configKeyGroupNames          = "group_names"
+	configKeyPresets             = "volume_presets"
 	configKeyInvertSliders       = "invert_sliders"
 	configKeyCOMPort             = "com_port"
 	configKeyBaudRate            = "baud_rate"
@@ -94,6 +96,7 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 
 	userConfig.SetDefault(configKeySliderMapping, map[string][]string{})
 	userConfig.SetDefault(configKeyGroupNames, map[string][]string{})
+	userConfig.SetDefault(configKeyPresets, map[string][]string{})
 	userConfig.SetDefault(configKeyInvertSliders, false)
 	userConfig.SetDefault(configKeyCOMPort, defaultCOMPort)
 	userConfig.SetDefault(configKeyBaudRate, defaultBaudRate)
@@ -154,6 +157,7 @@ func (cc *CanonicalConfig) Load() error {
 	cc.logger.Infow("Config values",
 		"sliderMapping", cc.SliderMapping,
 		"groupNames", cc.GroupNames,
+		"volumePresets", cc.Presets,
 		"connectionInfo", cc.ConnectionInfo,
 		"invertSliders", cc.InvertSliders,
 	)
