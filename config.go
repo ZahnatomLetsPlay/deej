@@ -95,7 +95,7 @@ func NewConfig(logger *zap.SugaredLogger, notifier Notifier) (*CanonicalConfig, 
 	userConfig.AddConfigPath(userConfigPath)
 
 	userConfig.SetDefault(configKeySliderMapping, map[string][]string{})
-	userConfig.SetDefault(configKeyGroupNames, map[string][]string{})
+	userConfig.SetDefault(configKeyGroupNames, map[string]string{})
 	userConfig.SetDefault(configKeyPresets, map[string][]string{})
 	userConfig.SetDefault(configKeyInvertSliders, false)
 	userConfig.SetDefault(configKeyCOMPort, defaultCOMPort)
@@ -242,11 +242,11 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 		cc.internalConfig.GetStringMapStringSlice(configKeySliderMapping),
 	)
 
-	groupnamesmap := cc.userConfig.GetStringMapStringSlice(configKeyGroupNames)
+	groupnamesmap := cc.userConfig.GetStringMapString(configKeyGroupNames)
 	cc.GroupNames = make([]string, len(groupnamesmap))
 	for index, val := range groupnamesmap {
 		idx, _ := strconv.Atoi(index)
-		cc.GroupNames[idx] = val[0]
+		cc.GroupNames[idx] = val
 	}
 
 	// get the rest of the config fields - viper saves us a lot of effort here

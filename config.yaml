@@ -48,6 +48,9 @@ group_names:
   3: MUS
   4: MIC
 
+volume_presets:
+  0: 
+
 # set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
 invert_sliders: false
 
