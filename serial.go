@@ -293,14 +293,30 @@ func (sio *SerialIO) rebootArduino(logger *zap.SugaredLogger) {
 	}
 }
 
+// Writes the volume presets from config to
+func (sio *SerialIO) WriteVolumePresets(logger *zap.SugaredLogger) bool {
+	volumepresets := sio.deej.config.getVolumePresets()
+	line := ""
+	for pindex, group := range volumepresets {
+
+	}
+	if line != "" {
+		return true
+	}
+	return false
+}
+
+// Writes the group names from config to the arduino returns false if nothing was sent
 func (sio *SerialIO) WriteGroupNames(logger *zap.SugaredLogger) bool {
-	groupnames := sio.deej.config.GroupNames
+	groupnames := sio.deej.config.getGroupNames()
 	line := ""
 	for index, name := range groupnames {
 		if index > len(groupnames)-1 {
 			break
 		}
+
 		line += name
+
 		if index < len(groupnames)-1 {
 			line += "|"
 		}
@@ -314,11 +330,10 @@ func (sio *SerialIO) WriteGroupNames(logger *zap.SugaredLogger) bool {
 	return false
 }
 
-// Writes values to the serial port with required command
+// Writes values to the serial port with required command returns false if nothing was sent
 func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) bool {
 	//go func() {
 	line := ""
-	rawline := ""
 	if sio.lastKnownNumSliders == 0 {
 		sio.lastKnownNumSliders = len(values)
 	}
@@ -327,13 +342,11 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) bo
 			break
 		}
 		line += strconv.FormatFloat(float64(math.Round(float64(value*1023))), 'f', 0, 32)
-		rawline += strconv.FormatFloat(float64(math.Ceil(float64(value*1023))), 'f', 0, 32)
 		if index < sio.lastKnownNumSliders-1 {
 			line += "|"
-			rawline += "|"
 		}
 	}
-	//sio.logger.Debug("Sending values:", rawline)
+	//sio.logger.Debug("Sending values:", line)
 	if line != "" {
 		sio.WriteStringLine(logger, "deej.core.receive")
 		sio.WriteStringLine(logger, line)

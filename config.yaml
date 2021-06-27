@@ -48,8 +48,20 @@ group_names:
   3: MUS
   4: MIC
 
+# can be used as presets
 volume_presets:
   0: 
+    - 50
+    - 25
+    - 100
+    - 10
+    - 100
+  1:
+    - 25
+    - 50
+    - 50
+    - 50
+    - 100
 
 # set this to true if you want the controls inverted (i.e. top is 0%, bottom is 100%)
 invert_sliders: false

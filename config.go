@@ -20,7 +20,7 @@ type CanonicalConfig struct {
 	SliderMapping *SliderMap
 
 	GroupNames []string
-	Presets    []string
+	Presets    [][]int
 
 	ConnectionInfo struct {
 		COMPort  string
@@ -249,6 +249,17 @@ func (cc *CanonicalConfig) populateFromVipers() error {
 		cc.GroupNames[idx] = val
 	}
 
+	presetsmap := cc.userConfig.GetStringMapStringSlice(configKeyPresets)
+	cc.Presets = make([][]int, len(presetsmap))
+	for pindex, val := range presetsmap {
+		idx, _ := strconv.Atoi(pindex)
+		cc.Presets[idx] = make([]int, len(presetsmap[pindex]))
+		for index, strval := range val {
+			intval, _ := strconv.Atoi(strval)
+			cc.Presets[idx][index] = intval
+		}
+	}
+
 	// get the rest of the config fields - viper saves us a lot of effort here
 	cc.ConnectionInfo.COMPort = cc.userConfig.GetString(configKeyCOMPort)
 
@@ -274,4 +285,14 @@ func (cc *CanonicalConfig) onConfigReloaded() {
 	for _, consumer := range cc.reloadConsumers {
 		consumer <- true
 	}
+}
+
+// Returns the group names from the config file as a string slice
+func (cc *CanonicalConfig) getGroupNames() []string {
+	return cc.GroupNames
+}
+
+// Returns the volume presets from the config file as slice of int slices
+func (cc *CanonicalConfig) getVolumePresets() [][]int {
+	return cc.Presets
 }
