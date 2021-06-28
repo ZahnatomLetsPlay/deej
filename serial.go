@@ -132,6 +132,8 @@ func (sio *SerialIO) Initialize() error {
 	reader := bufio.NewReader(sio.conn)
 	sio.reader = *reader
 
+	sio.WriteVolumePresets(sio.namedLogger)
+
 	sio.logger.Debug(sio.WaitFor(sio.namedLogger, "INITBEGIN"))
 	sio.logger.Debug(sio.WaitFor(sio.namedLogger, "INITDONE"))
 
@@ -298,7 +300,7 @@ func (sio *SerialIO) WriteVolumePresets(logger *zap.SugaredLogger) bool {
 	volumepresets := sio.deej.config.getVolumePresets()
 	line := ""
 	for pindex, group := range volumepresets {
-
+		logger.Debug(pindex, ", ", group)
 	}
 	if line != "" {
 		return true
@@ -591,9 +593,11 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) bool {
 		if util.SignificantlyDifferent(sio.currentSliderPercentValues[sliderIdx], normalizedScalar, sio.deej.config.NoiseReductionLevel) {
 
 			// if it does, update the saved value and create a move event
-			//if sio.firstLine {
-			sio.currentSliderPercentValues[sliderIdx] = normalizedScalar
-			//}
+			if sio.firstLine {
+				sio.currentSliderPercentValues[sliderIdx] = normalizedScalar
+			} else {
+				sio.currentSliderPercentValues[sliderIdx] = -10
+			}
 
 			moveEvents = append(moveEvents, SliderMoveEvent{
 				SliderID:     sliderIdx,
