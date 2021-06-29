@@ -309,7 +309,7 @@ void sendSliderValues() {
 
 void printSliderValues() {
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
-    Serial.print("Slider #" + String(i + 1) + ": " + String(analogSliderValues[i]) + " mV");
+    Serial.print("Slider #" + String(i + 1) + ": " + String(toVolume(analogSliderValues[i])) + " mV");
 
     if (i < NUM_SLIDERS - 1) {
       Serial.print(" | ");
@@ -407,7 +407,7 @@ void checkForCommand() {
         String str = getValue(receive, '|', 0);
         for (int i = 1; str != ""; i++) {
           if (i - 1 < NUM_MUTES) {
-            if (sliderMuted[i - 1] > 2) {
+            if (sliderMuted[i - 1] > 0) {
               volumeValues[i - 1] = str.toInt();
             }
           } else {
@@ -499,8 +499,8 @@ void moveSliderTo(int value, int slider, AF_DCMotor motor) {
       return;
     }
     speed = abs(speed);
-    if (speed > 210) {
-      speed = 210;
+    if (speed > 230) {
+      speed = 230;
     } else if (speed < 140) {
       speed = 140;
     }
