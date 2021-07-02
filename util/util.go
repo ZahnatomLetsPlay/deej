@@ -100,7 +100,7 @@ func SignificantlyDifferent(old float32, new float32, noiseReductionLevel string
 		significantDifferenceThreshold = 0.035
 		break
 	case noiseReductionLow:
-		significantDifferenceThreshold = 0.01
+		significantDifferenceThreshold = 0.015
 		break
 	default:
 		significantDifferenceThreshold = 0.025

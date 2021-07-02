@@ -499,11 +499,15 @@ void moveSliderTo(int value, int slider, AF_DCMotor motor) {
       return;
     }
     speed = abs(speed);
-    if (speed > 230) {
+    /*if (speed > 230) {
       speed = 230;
     } else if (speed < 140) {
       speed = 140;
+    }*/
+    if(speed > 768){
+      speed = 768;
     }
+    speed = map(speed, 0, 768, 140, 255);
     motor.setSpeed(speed);
     if ((millis() - mills) > 5000) {
       break;
