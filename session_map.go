@@ -258,6 +258,7 @@ func (m *SessionMap) getVolumes() []float32 {
 	}
 	m.refreshSessions(false)*/
 	for i := 0; i < num_sliders; i++ {
+		vols[i] = 0
 		targets, ok := m.deej.config.SliderMapping.Get(i)
 		if !ok {
 			continue
@@ -288,6 +289,13 @@ func (m *SessionMap) getVolumes() []float32 {
 
 				// iterate all matching sessions and adjust the volume of each one
 				vols[i] = sessions[0].GetVolume()
+				for _, session := range sessions {
+					if session.GetVolume() != vols[i] && session != sessions[0] {
+						if err := session.SetVolume(vols[i]); err != nil {
+							m.logger.Warnw("Failed to set target session volume", "error", err)
+						}
+					}
+				}
 				/*for _, session := range sessions {
 					m.logger.Debug(session.GetVolume())
 				}*/

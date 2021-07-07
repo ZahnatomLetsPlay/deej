@@ -28,6 +28,7 @@ type SerialIO struct {
 	namedLogger           *zap.SugaredLogger
 	stopChannel           chan bool
 	connected             bool
+	rebooting             bool
 	running               bool
 	reset                 bool
 	configReloadedChannel chan bool
@@ -137,6 +138,8 @@ func (sio *SerialIO) Initialize() error {
 	sio.logger.Debug(sio.WaitFor(sio.namedLogger, "INITBEGIN"))
 	sio.logger.Debug(sio.WaitFor(sio.namedLogger, "INITDONE"))
 
+	sio.rebooting = false
+
 	return nil
 }
 
@@ -152,8 +155,8 @@ func (sio *SerialIO) Start() error {
 			adjusted := false
 
 			//send group names
-			if sio.WriteGroupNames(sio.namedLogger) {
-				sio.logger.Debug(sio.WaitFor(sio.namedLogger, "confirm groupnames"))
+			if !sio.WriteGroupNames(sio.namedLogger) {
+				sio.running = false
 			}
 
 			for sio.running {
@@ -178,12 +181,9 @@ func (sio *SerialIO) Start() error {
 					vals = sio.deej.GetSessionMap().getVolumes()
 					if !sio.deej.sessions.refreshing {
 						if sio.WriteValues(sio.namedLogger, vals) {
-							_, _ = sio.WaitFor(sio.namedLogger, "confirm value")
 							if !sio.firstLine {
 								sio.firstLine = true
 							}
-						} else {
-							sio.logger.Debug("Couldn't send values: ", vals)
 						}
 					}
 				}
@@ -261,21 +261,31 @@ func (sio *SerialIO) Shutdown() {
 }
 
 func (sio *SerialIO) Restart() {
-	sio.Shutdown()
+	if !sio.rebooting {
+		sio.rebooting = true
+		sio.Shutdown()
 
-	// let the connection close
-	// seems kinda pointless though
-	<-time.After(sio.stopDelay)
+		// let the connection close
+		// seems kinda pointless though
+		<-time.After(sio.stopDelay)
 
-	if inerr := sio.Initialize(); inerr != nil {
-		sio.logger.Warnw("Failed to initialize connection after parameter change", "error", inerr)
-	} else {
-		if err := sio.Start(); err != nil {
-			sio.logger.Warnw("Failed to renew connection after parameter change", "error", err)
+		if inerr := sio.Initialize(); inerr != nil {
+			sio.logger.Warnw("Failed to initialize connection after parameter change", "error", inerr)
 		} else {
-			sio.logger.Debug("Renewed connection successfully")
+			if err := sio.Start(); err != nil {
+				sio.logger.Warnw("Failed to renew connection after parameter change", "error", err)
+			} else {
+				sio.logger.Debug("Renewed connection successfully")
+			}
 		}
 	}
+}
+
+func (sio *SerialIO) Reset() {
+	go func() {
+		sio.reset = true
+		sio.Restart()
+	}()
 }
 
 // SubscribeToSliderMoveEvents returns an unbuffered channel that receives
@@ -288,9 +298,9 @@ func (sio *SerialIO) SubscribeToSliderMoveEvents() chan SliderMoveEvent {
 }
 
 func (sio *SerialIO) rebootArduino(logger *zap.SugaredLogger) {
-	sio.WriteStringLine(sio.namedLogger, "deej.core.reboot")
-	_, line := sio.WaitFor(logger, "lastline")
 	if !sio.reset {
+		sio.WriteStringLine(sio.namedLogger, "deej.core.reboot")
+		_, line := sio.WaitFor(logger, "lastline")
 		sio.handleLine(sio.namedLogger, line)
 	}
 }
@@ -326,9 +336,16 @@ func (sio *SerialIO) WriteGroupNames(logger *zap.SugaredLogger) bool {
 	if line != "" {
 		sio.WriteStringLine(logger, "deej.core.receive.groupnames")
 		sio.WriteStringLine(logger, line)
-		return true
+		success, _ := sio.WaitFor(sio.namedLogger, line)
+		if success {
+			return true
+		} else {
+			logger.Debug("Received incorrect return")
+			sio.Reset()
+			return false
+		}
 	}
-	logger.Info("Sent nothing ", groupnames, " ", sio.savenum)
+	logger.Debug("Sent nothing ", groupnames, " ", sio.savenum)
 	return false
 }
 
@@ -352,10 +369,17 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) bo
 	if line != "" {
 		sio.WriteStringLine(logger, "deej.core.receive")
 		sio.WriteStringLine(logger, line)
-		return true
+		success, _ := sio.WaitFor(sio.namedLogger, line)
+		if success {
+			return true
+		} else {
+			logger.Debug("Received incorrect return")
+			sio.Reset()
+			return false
+		}
 	}
 
-	sio.logger.Debug("Couldn't send values:", line)
+	logger.Debug("Couldn't send values:", line)
 
 	return false
 	//}()
@@ -368,7 +392,8 @@ func (sio *SerialIO) WriteStringLine(logger *zap.SugaredLogger, line string) {
 
 	if err != nil {
 
-		logger.Warnw("Failed to write line to serial", "error", err, "line", line)
+		logger.Debug("Failed to write line to serial", "error", err, "line", line)
+		sio.Reset()
 		return
 	}
 }
@@ -389,6 +414,7 @@ func (sio *SerialIO) WriteBytesLine(logger *zap.SugaredLogger, line []byte) {
 
 		// we probably don't need to log this, it'll happen once and the read loop will stop
 		// logger.Warnw("Failed to read line from serial", "error", err, "line", line)
+		sio.Reset()
 		return
 	}
 }
@@ -401,6 +427,7 @@ func (sio *SerialIO) WriteBytes(logger *zap.SugaredLogger, line []byte) {
 
 		// we probably don't need to log this, it'll happen once and the read loop will stop
 		// logger.Warnw("Failed to read line from serial", "error", err, "line", line)
+		sio.Reset()
 		return
 	}
 }
@@ -414,38 +441,9 @@ func (sio *SerialIO) WaitFor(logger *zap.SugaredLogger, cmdKey string) (success 
 
 	line, err := reader.ReadString('\r')
 
-	/*go func() {
-		reader.ReadString('\n')
-	}()*/
-
-	/*var line string
-	var err error
-	got := false
-
-	readerfunc := func() {
-		line, err = reader.ReadString('\r')
-		//logger.Debug(line)
-		got = true
-		go func() {
-			reader.ReadString('\n')
-		}()
-	}
-	go readerfunc()
-	now := time.Now()
-	for {
-		if now.Add(5 * time.Second).Before(time.Now()) {
-			sio.logger.Warn("Got nothing for 5 seconds...")
-			readerfunc = nil
-			sio.Flush(logger)
-			return false, ""
-		}
-		if got {
-			break
-		}
-	}*/
-
 	if err != nil {
 		sio.logger.Error("Error reading line", "Error: ", err, "Line: ", line)
+		sio.Reset()
 		return false, ""
 	}
 
@@ -536,10 +534,7 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) bool {
 		logger.Info("Unexpected line pattern", line)
 		if line == "INITDONE" || line == "INITBEGIN" {
 			logger.Info("Arduino reset detected, restarting serial connection")
-			go func() {
-				sio.reset = true
-				sio.Restart()
-			}()
+			sio.Reset()
 		}
 		return false
 	}
@@ -611,7 +606,7 @@ func (sio *SerialIO) handleLine(logger *zap.SugaredLogger, line string) bool {
 	}
 
 	// deliver move events if there are any, towards all potential consumers
-	//not trigger move events for testing
+	// don't trigger events before arduino has adjusted to computer's values
 	if len(moveEvents) > 0 && sio.firstLine {
 		for _, consumer := range sio.sliderMoveConsumers {
 			for _, moveEvent := range moveEvents {
