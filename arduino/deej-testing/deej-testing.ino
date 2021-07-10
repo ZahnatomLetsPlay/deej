@@ -35,7 +35,7 @@ const unsigned char icon [] PROGMEM = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 bool makeLogarithmic = false;
 const uint8_t analogInputs[NUM_SLIDERS] = {A10, A11, A7, A8, A9};
 //Mute index corresponds to analoginput index
-//If you want to leave an input without mute, enter an unused input
+//If you want to leave an input without mute, enter -1
 const uint8_t muteInputs[NUM_MUTES] = {50};
 
 uint16_t analogSliderValues[NUM_SLIDERS];
@@ -47,7 +47,7 @@ int buttonState[NUM_MUTES];
 bool mute[NUM_MUTES];
 uint16_t muteValues[NUM_MUTES];
 unsigned long muteTimes[NUM_MUTES];
-//bool firstReceive = true;
+bool pause = false;
 
 //this is what motor has what analog input
 const uint8_t motorMap[NUM_MOTORS] = {A10, A11};
@@ -67,6 +67,7 @@ String names;
 String receiveline = "";
 String sendline = "";
 
+//Sets up pinmodes, motors; initializes buttons, display, etc, etc
 void setup() {
   if (!Serial) {
     Serial.end();
@@ -83,10 +84,12 @@ void setup() {
       names += "|";
     }
     if (i < NUM_MUTES) {
-      pinMode(muteInputs[i], INPUT);
-      mute[i] = false;
-      buttonState[i] = LOW;
-      muteTimes[i] = 0;
+      if (muteInputs[i] != -1) {
+        pinMode(muteInputs[i], INPUT);
+        mute[i] = false;
+        buttonState[i] = LOW;
+        muteTimes[i] = 0;
+      }
     }
     volumeValues[i] = 0;
     analogSliderValues[i] = 0;
@@ -117,12 +120,6 @@ void setup() {
       }
     }
     AF_DCMotor motor = motors[i];
-    //moveSliderTo(512, pin, motor);
-    //delay(100);
-    //moveSliderTo(0, pin, motor);
-    //delay(100);
-    //moveSliderTo(1023, pin, motor);
-    //delay(100);
     moveSliderTo(0, pin, motor);
   }
   makeLogarithmic = savelog;
@@ -133,20 +130,24 @@ void setup() {
 
 void loop() {
   checkForTouch();
-  checkForButton();
+  if (!pause) {
+    checkForButton();
+  }
 
   checkForCommand();
 
-  updateSliderValues();
+  if (!pause) {
+    updateSliderValues();
 
-  //Check for data chanel to be open
-  if (pushSliderValuesToPC) {
-    sendSliderValues(); // Actually send data
-  }
+    //Check for data chanel to be open
+    if (pushSliderValuesToPC) {
+      sendSliderValues(); // Actually send data
+    }
 
-  if (firstcmd) {
-    for (int i = 0; i < NUM_MOTORS; i++) {
-      moveMotor(i);
+    if (firstcmd) {
+      for (int i = 0; i < NUM_MOTORS; i++) {
+        moveMotor(i);
+      }
     }
   }
 
@@ -154,6 +155,7 @@ void loop() {
   delay(FrequencyMS);
 }
 
+// reboots the arduino
 void reboot() {
 #if MCU32U4
   wdt_disable();
@@ -164,28 +166,33 @@ void reboot() {
 #endif
 }
 
+//checks if a mute button is pressed and acts correspondingly
 void checkForButton() {
   for (int i = 0; i < NUM_MUTES; i++) {
-    int read = digitalRead(muteInputs[i]);
-    int previous = buttonState[i];
-    if (read == HIGH && previous == LOW && millis() - muteTimes[i] > DEBOUNCE_TIME) {
-      if (mute[i]) {
-        mute[i] = false;
-        volumeValues[i] = muteValues[i];
-        analogSliderValues[i] = muteValues[i];
+    if (muteInputs[i] != -1) {
+      int read = digitalRead(muteInputs[i]);
+      int previous = buttonState[i];
+      if (read == HIGH && previous == LOW && millis() - muteTimes[i] > DEBOUNCE_TIME) {
+        if (mute[i]) {
+          mute[i] = false;
+          volumeValues[i] = muteValues[i];
+          analogSliderValues[i] = muteValues[i];
+        } else {
+          mute[i] = true;
+          muteValues[i] = volumeValues[i];
+        }
+        sliderMuted[i] = 0;
+        muteTimes[i] = millis();
       } else {
-        mute[i] = true;
-        muteValues[i] = volumeValues[i];
+        sliderMuted[i]++;
       }
-      sliderMuted[i] = 0;
-      muteTimes[i] = millis();
-    } else {
-      sliderMuted[i]++;
+      buttonState[i] = read;
     }
-    buttonState[i] = read;
   }
 }
 
+//checks if someone is touching the slider of a motorized fader so that the input by the user isn't
+//being ignored
 void checkForTouch() {
   for (int i = 0; i < NUM_MOTORS; i++) {
     if (digitalRead(touchInputs[i]) == 0) {
@@ -199,6 +206,7 @@ void checkForTouch() {
   }
 }
 
+//updates text on the display
 void showOnDisplay() {
   String dsp = "";
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
@@ -227,6 +235,7 @@ void showOnDisplay() {
   display.display();
 }
 
+//checks if a slider has to be moved to a different value and does so
 void moveMotor(int i) {
   checkForTouch();
   if (!touch[i]) {
@@ -252,6 +261,7 @@ void moveMotor(int i) {
   }
 }
 
+//currently not useful but an attempt at making linear sliders logarithmic
 uint16_t getAnalogValue(int input) {
   if (makeLogarithmic) {
     //return exp(6.774677191*pow(10,-3)*analogRead(input));
@@ -263,6 +273,7 @@ uint16_t getAnalogValue(int input) {
   }
 }
 
+//updates values of sliders
 void updateSliderValues() {
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
     if (i < NUM_MUTES && mute[i]) {
@@ -295,6 +306,7 @@ void updateSliderValues() {
   //memcpy(analogSliderValues, volumeValues, sizeof(analogSliderValues));
 }
 
+//sends slider values to the computer
 void sendSliderValues() {
   String sendvals = "";
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
@@ -307,6 +319,7 @@ void sendSliderValues() {
   Serial.println(sendvals);
 }
 
+//prints slider values easier to read
 void printSliderValues() {
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
     Serial.print("Slider #" + String(i + 1) + ": " + String(toVolume(analogSliderValues[i])) + " mV");
@@ -328,10 +341,12 @@ void printSliderValues() {
   }
 }
 
+//returns the volume level that the analog value would be on the computer
 int toVolume(int val) {
   return round(((float(val) / 1023)) * 100);
 }
 
+//used for splitting strings
 String getValue(String data, char separator, int index) {
   int found = 0;
   int strIndex[] = {0, -1};
@@ -445,6 +460,7 @@ void checkForCommand() {
         Serial.println(receive);
       }
 
+      //reboots the arduino
       else if ( input.equalsIgnoreCase("deej.core.reboot") == true ) {
         for (int i = 0; i < NUM_MUTES; i++) {
           if (mute[i]) {
@@ -463,22 +479,30 @@ void checkForCommand() {
 
       //Default Catch all
       else {
-        Serial.println("INVALIDCOMMANDS: " + input);
+        Serial.println("INVALIDCOMMAND");
         Serial.flush();
       }
     }
     lastcmd = millis();
+    pause = false;
     return;
   } else {
     if ((millis() - lastcmd) > 500 && firstcmd) {
       sendSliderValues();
       lastcmd = millis();
+      pause = true;
+      for (int i = 0; i < NUM_MOTORS; i++) {
+        if (!touch[i]) {
+          moveSliderTo(0, motorMap[i], motors[i]);
+        }
+      }
       Serial.flush();
       //reboot();
     }
   }
 }
 
+//moves a slider to a different value
 void moveSliderTo(int value, int slider, AF_DCMotor motor) {
   int speed = 0;
   int vol = toVolume(value);
@@ -501,10 +525,10 @@ void moveSliderTo(int value, int slider, AF_DCMotor motor) {
     speed = abs(speed);
     /*if (speed > 230) {
       speed = 230;
-    } else if (speed < 140) {
+      } else if (speed < 140) {
       speed = 140;
-    }*/
-    if(speed > 768){
+      }*/
+    if (speed > 768) {
       speed = 768;
     }
     speed = map(speed, 0, 768, 140, 255);

@@ -336,11 +336,16 @@ func (sio *SerialIO) WriteGroupNames(logger *zap.SugaredLogger) bool {
 	if line != "" {
 		sio.WriteStringLine(logger, "deej.core.receive.groupnames")
 		sio.WriteStringLine(logger, line)
-		success, _ := sio.WaitFor(sio.namedLogger, line)
+		success, rline := sio.WaitFor(sio.namedLogger, line)
+		rline = strings.TrimSuffix(rline, "\r")
 		if success {
 			return true
+		} else if !success && rline == "INVALIDCOMMAND" {
+			logger.Debug("Command invalid")
+			sio.Flush(logger)
+			return true
 		} else {
-			logger.Debug("Received incorrect return")
+			logger.Debug("Received incorrect return ", rline)
 			sio.Reset()
 			return false
 		}
@@ -369,11 +374,16 @@ func (sio *SerialIO) WriteValues(logger *zap.SugaredLogger, values []float32) bo
 	if line != "" {
 		sio.WriteStringLine(logger, "deej.core.receive")
 		sio.WriteStringLine(logger, line)
-		success, _ := sio.WaitFor(sio.namedLogger, line)
+		success, rline := sio.WaitFor(sio.namedLogger, line)
+		rline = strings.TrimSuffix(rline, "\r")
 		if success {
 			return true
+		} else if !success && rline == "INVALIDCOMMAND" {
+			logger.Debug("Command invalid")
+			sio.Flush(logger)
+			return false
 		} else {
-			logger.Debug("Received incorrect return")
+			logger.Debug("Received incorrect return ", rline)
 			sio.Reset()
 			return false
 		}
