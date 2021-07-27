@@ -5,7 +5,6 @@ venv/
 *.log
 .vscode
 *.lnk
-*.exe
 deej-dev
 deej-release
 *.bin
