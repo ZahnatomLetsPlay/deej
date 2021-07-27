@@ -47,7 +47,7 @@ int buttonState[NUM_MUTES];
 bool mute[NUM_MUTES];
 uint16_t muteValues[NUM_MUTES];
 unsigned long muteTimes[NUM_MUTES];
-bool pause = false;
+bool pause = true;
 
 //this is what motor has what analog input
 const uint8_t motorMap[NUM_MOTORS] = {A10, A11};
@@ -180,7 +180,10 @@ void checkForButton() {
         } else {
           mute[i] = true;
           muteValues[i] = volumeValues[i];
+          volumeValues[i] = 0;
         }
+        moveMotor(i);
+        motorMoved[i] = 1;
         sliderMuted[i] = 0;
         muteTimes[i] = millis();
       } else {
@@ -247,7 +250,7 @@ void moveMotor(int i) {
         int vol = toVolume(volumeValues[i]);
         int analogvol = toVolume(getAnalogValue(pin));
         uint16_t diff = abs(vol - analogvol);
-        if (diff > 2) {
+        if (diff > 1) {
           //Serial.println("Moving slider #" + String(i) + " " + String(analogval) + " " + String(diff));
           checkForTouch();
           if (!touch[i]) {
@@ -278,6 +281,7 @@ void updateSliderValues() {
   for (uint8_t i = 0; i < NUM_SLIDERS; i++) {
     if (i < NUM_MUTES && mute[i]) {
       analogSliderValues[i] = 0;
+      volumeValues[i] = 0;
     } else {
       bool motor = false;
       int motor_num = -1;
@@ -484,13 +488,21 @@ void checkForCommand() {
       }
     }
     lastcmd = millis();
-    pause = false;
+    if (pause) {
+      pause = false;
+    }
     return;
   } else {
     if ((millis() - lastcmd) > 500 && firstcmd) {
       sendSliderValues();
+      Serial.println("STALECONNECTION");
       lastcmd = millis();
-      pause = true;
+      if (!pause) {
+        pause = true;
+        display.clearDisplay();
+        display.drawBitmap(0, 0, icon, 128, 64, WHITE);
+        display.display();
+      }
       for (int i = 0; i < NUM_MOTORS; i++) {
         if (!touch[i]) {
           moveSliderTo(0, motorMap[i], motors[i]);
