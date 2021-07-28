@@ -494,7 +494,6 @@ void checkForCommand() {
     return;
   } else {
     if ((millis() - lastcmd) > 500 && firstcmd) {
-      sendSliderValues();
       Serial.println("STALECONNECTION");
       lastcmd = millis();
       if (!pause) {
