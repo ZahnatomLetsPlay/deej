@@ -199,7 +199,7 @@ void moveMotor(int i) {
         int vol = toVolume(volumeValues[i]);
         int analogvol = toVolume(getAnalogValue(pin));
         uint16_t diff = abs(vol - analogvol);
-        if (diff > 1) {
+        if (diff > 2) {
           //Serial.println("Moving slider #" + String(i) + " " + String(analogval) + " " + String(diff));
           checkForTouch();
           if (!touch[i]) {

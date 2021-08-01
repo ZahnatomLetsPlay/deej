@@ -64,8 +64,6 @@ bool firstcmd = false;
 bool lastcmdrequest = true;
 
 String names;
-String receiveline = "";
-String sendline = "";
 
 //Sets up pinmodes, motors; initializes buttons, display, etc, etc
 void setup() {
@@ -233,8 +231,6 @@ void showOnDisplay() {
   display.setCursor(0, 0);
   display.println(names);
   display.println(dsp);
-  display.println(receiveline);
-  display.println(sendline);
   display.display();
 }
 
@@ -250,7 +246,7 @@ void moveMotor(int i) {
         int vol = toVolume(volumeValues[i]);
         int analogvol = toVolume(getAnalogValue(pin));
         uint16_t diff = abs(vol - analogvol);
-        if (diff > 1) {
+        if (diff > 2) {
           //Serial.println("Moving slider #" + String(i) + " " + String(analogval) + " " + String(diff));
           checkForTouch();
           if (!touch[i]) {
@@ -319,7 +315,6 @@ void sendSliderValues() {
       sendvals += "|";
     }
   }
-  sendline = sendvals;
   Serial.println(sendvals);
 }
 
@@ -420,7 +415,6 @@ void checkForCommand() {
           Serial.flush();
           return;
         }
-        receiveline = receive;
         int saveVals[NUM_SLIDERS];
         memcpy(saveVals, volumeValues, NUM_SLIDERS);
         String str = getValue(receive, '|', 0);

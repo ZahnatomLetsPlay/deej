@@ -127,6 +127,8 @@ func (sio *SerialIO) Initialize() error {
 		sio.namedLogger.Warnw("Failed to open serial connection", "error", err)
 		return fmt.Errorf("open serial connection: %w", err)
 	}
+	sio.firstLine = false
+	sio.reset = false
 	sio.connected = true
 	sio.namedLogger.Infow("Connected", "conn", sio.conn)
 
@@ -252,8 +254,6 @@ func (sio *SerialIO) Shutdown() {
 		sio.rebootArduino(sio.namedLogger)
 
 		sio.close(sio.namedLogger)
-		sio.firstLine = false
-		sio.reset = false
 		sio.logger.Debug("Serial Shutdown")
 	} else {
 		sio.logger.Debug("Not currently connected, nothing to stop")
@@ -270,10 +270,10 @@ func (sio *SerialIO) Restart() {
 		<-time.After(sio.stopDelay)
 
 		if inerr := sio.Initialize(); inerr != nil {
-			sio.logger.Warnw("Failed to initialize connection after parameter change", "error", inerr)
+			sio.logger.Warnw("Failed to initialize connection", "error", inerr)
 		} else {
 			if err := sio.Start(); err != nil {
-				sio.logger.Warnw("Failed to renew connection after parameter change", "error", err)
+				sio.logger.Warnw("Failed to renew connection", "error", err)
 			} else {
 				sio.logger.Debug("Renewed connection successfully")
 			}

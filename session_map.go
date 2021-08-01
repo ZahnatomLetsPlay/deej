@@ -252,20 +252,12 @@ func (m *SessionMap) sessionMapped(session Session) bool {
 func (m *SessionMap) getVolumes() []float32 {
 	num_sliders := m.deej.config.SliderMapping.Size()
 	vols := make([]float32, num_sliders)
-	/*if m.lastSessionRefresh.Add(maxTimeBetweenSessionRefreshes).Before((time.Now())) {
-		m.logger.Debug("Stale session map detected on volume request, refreshing")
-		m.refreshSessions(false)
-	}
-	/*m.refreshSessions(false)*/
 	for i := 0; i < num_sliders; i++ {
 		vols[i] = 0
 		targets, ok := m.deej.config.SliderMapping.Get(i)
 		if !ok {
 			continue
 		}
-
-		//targetFound := false
-		//adjustmentFailed := false
 
 		// for each possible target for this slider...
 		for _, target := range targets {
@@ -285,27 +277,8 @@ func (m *SessionMap) getVolumes() []float32 {
 					continue
 				}
 
-				//targetFound = true
 				vols[i] = sessions[0].GetVolume()
-				// iterate all matching sessions and adjust the volume of each one if its not the expected value
-				/*if m.deej.GetSerial().firstLine && m.deej.GetSerial().currentSliderPercentValues[i] >= 0 {
-					for _, session := range sessions {
-						vol := session.GetVolume()
-						if util.SignificantlyDifferent(m.deej.GetSerial().currentSliderPercentValues[i], vol, m.deej.config.NoiseReductionLevel) {
-							m.refreshSessions(false)
-							if err := session.SetVolume(m.deej.GetSerial().currentSliderPercentValues[i]); err != nil {
-								m.logger.Warnw("Failed to set target session volume", "error", err)
-							}
-						} else {
-							vols[i] = vol
-						}
-					}
-				} else {
-					vols[i] = sessions[0].GetVolume()
-				}*/
-				/*for _, session := range sessions {
-					m.logger.Debug(session.GetVolume())
-				}*/
+
 			}
 		}
 
